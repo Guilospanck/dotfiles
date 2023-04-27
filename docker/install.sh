@@ -1,0 +1,1 @@
+brew install colima && brew install dive

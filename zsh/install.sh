@@ -1,0 +1,1 @@
+brew install zsh && chsh -s /opt/homebrew/bin/zsh
