@@ -1,0 +1,15 @@
+[user]
+	name = Guilherme Pereira
+	email = guilospanck@protonmail.com
+	signingKey = <>
+[url "https://Guilospanck:<>@github.com"] 
+        insteadOf = https://github.com
+[color]
+	ui = auto
+[core]
+	editor = code --wait
+[commit]
+	gpgsign = true
+
+[alias]
+tree = log --oneline --decorate --all --graph

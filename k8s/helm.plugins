@@ -1,0 +1,4 @@
+secrets	4.4.1  	This plugin provides secrets values encryption for Helm charts secure storing
+# install:
+helm plugin install https://github.com/jkroepke/helm-secrets --version v4.4.1
+
