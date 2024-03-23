@@ -8,8 +8,21 @@
 	ui = auto
 [core]
 	editor = code --wait
+	excludesFile = ~/.gitignore
 [commit]
 	gpgsign = true
 
 [alias]
-tree = log --oneline --decorate --all --graph
+	tree = log --oneline --decorate --all --graph
+
+[push]
+	autoSetupRemote = true
+	followTags = true
+[merge]
+	conflictStyle = zdiff3
+[init]
+	defaultBranch = main
+[diff]
+	algorithm = histogram
+[branch]
+	sort = -committerdate
