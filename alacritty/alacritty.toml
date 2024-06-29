@@ -1,0 +1,4 @@
+import = [ "~/.config/alacritty/theme.toml", "~/.config/alacritty/font.toml", "~/.config/alacritty/default.toml" ]
+
+[font]
+size = 15

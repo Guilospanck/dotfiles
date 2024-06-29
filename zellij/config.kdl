@@ -1,0 +1,42 @@
+theme "rose-pine"
+default_layout "compact"
+on_force_close "quit"
+default_shell "/bin/zsh"
+mouse_mode true
+
+// This is being mapped by keys on the config of alacritty
+keybinds {
+   normal {
+      bind "" { NewPane "Right"; } // Cmd-e
+      bind "" { NewPane "Down"; } // Cmd-g
+      bind "" { NewTab ; } // Cmd-n
+      bind "" { CloseFocus ; } // Cmd-w
+      bind "" { GoToNextTab ; } // Cmd-y
+      // Resize current panel
+      bind "Alt Up" { Resize "Up"; }
+      bind "Alt Right" { Resize "Right"; }
+      bind "Alt Down" { Resize "Down"; }
+      bind "Alt Left" { Resize "Left"; }
+
+      unbind "Ctrl n" // we are using for navigationg lists, like fzf
+      unbind "Ctrl p" // we are using for navigationg lists, like fzf
+      unbind "Ctrl w" // we are using in neovim 
+      unbind "Ctrl o" // we are using in neovim 
+      unbind "Ctrl q" // we are using in neovim 
+
+      unbind "Ctrl h" // we are using in neovim 
+      unbind "Ctrl j" // we are using in neovim 
+      unbind "Ctrl k" // we are using in neovim 
+      unbind "Ctrl l" // we are using in neovim 
+      unbind "Ctrl g" // we are using in neovim 
+      unbind "Ctrl b" // we are using in neovim 
+      unbind "Ctrl f" // we are using in neovim 
+   }
+}
+
+ui {
+    pane_frames {
+        hide_session_name true
+    }
+}
+
