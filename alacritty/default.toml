@@ -43,5 +43,7 @@ bindings = [
   { key = "m",  mods = "Command|Shift", chars = "\uE140" }, # Mark a file in Harpoon
   { key = "e",  mods = "Command|Shift", chars = "\uE141" }, # Open a Harpoon window
   { key = "a",  mods = "Command|Shift", chars = "\uE142" }, # Copy absolute path of current file
-  { key = "x",  mods = "Command|Shift", chars = "\uE143" } # Copy absolute path of current file
+  { key = "x",  mods = "Command|Shift", chars = "\uE143" }, # Copy absolute path of current file
+  { key = "t",  mods = "Command|Shift", action ="CreateNewWindow" } # Open a new Alacritty window
+
 ]
