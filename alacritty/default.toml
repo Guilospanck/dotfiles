@@ -23,7 +23,7 @@ bindings = [
   { key = "Minus",  mods = "Command", action="DecreaseFontSize" }, # Decreases font size
   { key = "e",  mods = "Command", chars = "\uE120" }, # Open new Zellij panel on the right
   { key = "n",  mods = "Command", chars = "\uE121" }, # Open new Zellij tab 
-  { key = "w",  mods = "Command", chars = "\uE122" }, # Close Zellij tab 
+  { key = "w",  mods = "Control", chars = "\uE122" }, # Close Zellij tab 
   { key = "f",  mods = "Alt|Shift", chars = "\uE123" }, # Format code inside nvim (plugin: https://github.com/stevearc/conform.nvim
   { key = "b",  mods = "Command", chars = "\uE124" }, # Open explore inside nvim (default netrw using :Lex)
   { key = "p",  mods = "Command", chars = "\uE125" }, # Search for files in project in nvim (plugin: https://github.com/nvim-telescope/telescope.nvim)

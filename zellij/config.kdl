@@ -10,7 +10,7 @@ keybinds {
       bind "" { NewPane "Right"; } // Cmd-e
       bind "" { NewPane "Down"; } // Cmd-g
       bind "" { NewTab ; } // Cmd-n
-      bind "" { CloseFocus ; } // Cmd-w
+      bind "" { CloseFocus ; } // Control-w
       bind "" { GoToNextTab ; } // Cmd-y
       // Resize current panel
       bind "Alt Up" { Resize "Up"; }
