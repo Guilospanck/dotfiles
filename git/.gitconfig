@@ -1,20 +1,17 @@
 [user]
 	name = Guilherme Pereira
 	email = guilospanck@protonmail.com
-	signingKey = <>
-[url "https://Guilospanck:<>@github.com"] 
+	signingKey = <path to ssh signing key. Example: ~/.ssh/id_rsa.pub>
+[url "https://Guilospanck:<your-github-pat-token>@github.com"] 
         insteadOf = https://github.com
 [color]
 	ui = auto
 [core]
-	editor = code --wait
 	excludesFile = ~/.gitignore
 [commit]
 	gpgsign = true
-
 [alias]
 	tree = log --oneline --decorate --all --graph
-
 [push]
 	autoSetupRemote = true
 	followTags = true
@@ -26,3 +23,5 @@
 	algorithm = histogram
 [branch]
 	sort = -committerdate
+[gpg]
+	format = ssh
