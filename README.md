@@ -2,6 +2,10 @@
 
 Yet another dotfiles in order to speed the process of updating new work environment.
 
+## Branches
+
+We have the `main` branch that is mostly for MacOS and we have the `omarchy` branch that is supposed to be used with `Omarchy` (Arch, Wayland, Hyprland).
+
 ## How to use
 
 ```bash
