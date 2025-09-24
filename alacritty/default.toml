@@ -14,7 +14,7 @@ dynamic_title = true
 startup_mode = "Maximized"
 
 [terminal.shell]
-program = "/bin/zsh"
+program = "/bin/bash"
 args = ["--login", "-c", "zellij"]
 
 [keyboard]
