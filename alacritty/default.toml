@@ -13,7 +13,7 @@ option_as_alt = "Both"
 dynamic_title = true
 startup_mode = "Maximized"
 
-[terminal.shell]
+[shell]
 program = "/bin/zsh"
 args = ["--login", "-c", "zellij"]
 
