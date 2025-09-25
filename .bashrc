@@ -70,6 +70,18 @@ fv() {
   [ -f "$file" ] && vim -- "$file" || true
 }
 
+# Enable vi mode
+set -o vi
+bind "set vi-ins-mode-string >"
+bind "set vi-cmd-mode-string <"
+bind "set show-mode-in-prompt on"
+# Fix control keys in vi-insert
+bind -m vi-insert '"\C-c": abort'          # Ctrl-C: cancel the line cleanly
+bind -m vi-insert '"\C-l": clear-screen'   # Ctrl-L: clear screen
+bind -m vi-insert '"\C-p": previous-history'
+bind -m vi-insert '"\C-n": next-history'
+
+
 # Set terminal title to current directory (Bash uses PROMPT_COMMAND, not zsh's precmd)
 set_title() {
   echo -ne "\033]0;${PWD}\007"
@@ -77,6 +89,3 @@ set_title() {
 
 # Run before each prompt; append if PROMPT_COMMAND already set
 PROMPT_COMMAND="set_title${PROMPT_COMMAND:+; $PROMPT_COMMAND}"
-
-# Enable vi mode
-set -o vi
