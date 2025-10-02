@@ -20,6 +20,7 @@ args = ["--login", "-c", "zellij"]
 [keyboard]
 bindings = [
   { key = "Plus",  mods = "Control", action="IncreaseFontSize" }, # Increases font size
+  { key = "=",  mods = "Control", action="IncreaseFontSize" }, # Increases font size
   { key = "Minus",  mods = "Control", action="DecreaseFontSize" }, # Decreases font size
 
   { key = "e",  mods = "Command", chars = "\uE120" }, # Open new Zellij panel on the right
