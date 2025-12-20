@@ -6,19 +6,8 @@ Yet another dotfiles in order to speed the process of updating new work environm
 
 We have the `main` branch that is mostly for MacOS and we have the `omarchy` branch that is supposed to be used with `Omarchy` (Arch, Wayland, Hyprland).
 
-## How to use
+## How to use with Omarchy
 
-```bash
-./install_all.sh
-```
+When you first install Omarchy, its default files/configs will reside at `~/.local/share/omarchy/default/*`. You usually should not change them (with exception of the `bin` files. See the `/bin` folder README here of this repository).
 
-## Ubuntu
-
-There's a Ubuntu `dconf` file that can be used to load the configurations to match
-the ones we have regarding Alacritty, Zellij and nvim.
-
-To load it, do:
-
-```shell
-dconf load / < dconf-backup.ini
-```
+Then, to actually configure it for yourself, you're gonna do them via the configs at `~/.config/` (`~/.config/fcitx5/`, `~/.config/hypr/`, `~/.config/waybar/` etc). Those configs are the ones that will modify the default ones.
