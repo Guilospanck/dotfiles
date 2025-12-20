@@ -1,0 +1,4 @@
+# Ensure keepassxc is locked
+if pgrep -x "keepassxc" >/dev/null; then
+  keepassxc --lock &
+fi

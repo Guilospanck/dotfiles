@@ -1,0 +1,1 @@
+echo "$THEME_NAME" > "$CURRENT_THEME_DIR/theme_name"
