@@ -1,0 +1,5 @@
+layout {
+    floating_panes {
+        pane name="floating"
+    }
+}

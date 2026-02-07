@@ -10,13 +10,14 @@ keybinds {
       bind "" { NewPane "Right"; } // Cmd-e
       bind "" { NewPane "Down"; } // Cmd-g
       bind "" { NewTab ; } // Cmd-n
-      bind "" { CloseFocus ; } // Control-w
+      bind "" { CloseFocus ; } // Cmd-w
       bind "" { GoToNextTab ; } // Cmd-y
       // Resize current panel
       bind "Alt Up" { Resize "Up"; }
       bind "Alt Right" { Resize "Right"; }
       bind "Alt Down" { Resize "Down"; }
       bind "Alt Left" { Resize "Left"; }
+      bind "Alt f" { ToggleFloatingPanes; }
 
       unbind "Ctrl n" // we are using for navigationg lists, like fzf
       unbind "Ctrl p" // we are using for navigationg lists, like fzf
