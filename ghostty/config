@@ -1,0 +1,94 @@
+# Shell — launch tmux automatically
+command = /bin/zsh --login -c tmux
+
+# Font
+font-family = FiraCode Nerd Font
+font-style = Regular
+font-style-bold = Bold
+font-style-italic = Italic
+font-size = 10
+
+# Window
+window-decoration = false
+background-opacity = 1
+window-padding-x = 4
+window-padding-y = 3
+maximize = true
+macos-option-as-alt = true
+
+# Terminal
+term = xterm-256color
+
+# ──────────────────────────────────────────────
+# Rose Pine theme
+# ──────────────────────────────────────────────
+background = 191724
+foreground = e0def4
+cursor-color = 524f67
+selection-background = 403d52
+selection-foreground = e0def4
+
+# Normal colors (palette 0-7)
+palette = 0=#26233a
+palette = 1=#eb6f92
+palette = 2=#31748f
+palette = 3=#f6c177
+palette = 4=#9ccfd8
+palette = 5=#c4a7e7
+palette = 6=#ebbcba
+palette = 7=#e0def4
+
+# Bright colors (palette 8-15)
+palette = 8=#6e6a86
+palette = 9=#eb6f92
+palette = 10=#31748f
+palette = 11=#f6c177
+palette = 12=#9ccfd8
+palette = 13=#c4a7e7
+palette = 14=#ebbcba
+palette = 15=#e0def4
+
+# ──────────────────────────────────────────────
+# Keybindings
+# ──────────────────────────────────────────────
+
+# Unbind macOS defaults so Alt+Left/Right send proper Meta sequences to tmux
+keybind = alt+left=unbind
+keybind = alt+right=unbind
+
+# Font size
+keybind = ctrl+equal=increase_font_size:1
+keybind = ctrl+plus=increase_font_size:1
+keybind = ctrl+minus=decrease_font_size:1
+
+# New window
+keybind = super+shift+enter=new_window
+
+# Tmux/multiplexer controls (Unicode PUA chars passed to tmux)
+keybind = super+e=text:\u{e120}
+keybind = super+n=text:\u{e121}
+keybind = super+w=text:\u{e122}
+keybind = super+y=text:\u{e136}
+keybind = super+g=text:\u{e137}
+
+# Nvim controls (Unicode PUA chars passed through to nvim)
+keybind = alt+shift+f=text:\u{e123}
+keybind = super+b=text:\u{e124}
+keybind = super+p=text:\u{e125}
+keybind = super+f=text:\u{e127}
+keybind = ctrl+f=text:\u{e127}
+keybind = super+shift+f=text:\u{e128}
+keybind = super+semicolon=text:\u{e129}
+keybind = super+six=text:\x1b[54;5u
+keybind = alt+tab=text:\u{e130}
+keybind = ctrl+t=text:\u{e132}
+keybind = super+t=text:\u{e132}
+keybind = super+shift+l=text:\u{e133}
+keybind = super+j=text:\u{e134}
+keybind = super+k=text:\u{e135}
+keybind = super+shift+p=text:\u{e138}
+keybind = super+shift+n=text:\u{e139}
+keybind = super+shift+m=text:\u{e140}
+keybind = super+shift+e=text:\u{e141}
+keybind = super+shift+a=text:\u{e142}
+keybind = super+shift+x=text:\u{e143}
