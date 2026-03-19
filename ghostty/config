@@ -2,7 +2,7 @@
 command = /bin/zsh --login -c tmux
 
 # Font
-font-family = FiraCode Nerd Font
+font-family = FiraCode Nerd Font Mono
 font-style = Regular
 font-style-bold = Bold
 font-style-italic = Italic
