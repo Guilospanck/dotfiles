@@ -19,6 +19,9 @@ macos-option-as-alt = true
 # Terminal
 term = xterm-256color
 
+# Clipboard
+clipboard-read = allow
+
 # ──────────────────────────────────────────────
 # Rose Pine theme
 # ──────────────────────────────────────────────
@@ -55,6 +58,9 @@ palette = 15=#e0def4
 # Unbind macOS defaults so Alt+Left/Right send proper Meta sequences to tmux
 keybind = alt+left=unbind
 keybind = alt+right=unbind
+
+# Let Cmd+V paste through to the terminal (e.g. for pasting images into CLI tools)
+keybind = super+v=paste_from_clipboard
 
 # Font size
 keybind = ctrl+equal=increase_font_size:1
