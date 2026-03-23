@@ -51,14 +51,19 @@ rm -rf ~/.config/fcitx5
 ln -sfn "$DOTFILES_DIR/fcitx5" ~/.config/fcitx5
 ```
 
-### Zsh prompt
+### Zsh
 
-Add the prompt to `~/.zshrc` (after Omarchy's default sourcing):
+Add the following to `~/.zshrc` (after Omarchy's default sourcing) to load the prompt, git aliases, and general aliases:
 
 ```bash
-# Prompt: shortened path + %
-PROMPT='%F{blue}%~%f %# '
+# Dotfiles zsh config (prompt, aliases)
+[[ -f ~/dotfiles/zsh/omarchy.zsh ]] && source ~/dotfiles/zsh/omarchy.zsh
 ```
+
+This provides:
+- **Prompt** with shortened path + git branch/status (`?` untracked, `!` modified, `+` staged, `↑↓` ahead/behind, `*` stash)
+- **Git aliases**: `ga` (add), `gc` (commit), `gs` (status), `gp` (push), `gd` (diff), `gds` (diff --staged), `gr` (restore), `grs` (restore --staged), `grlb` (prune gone branches)
+- **General aliases**: `cat`→bat, `ls`→eza, `vim`/`vi`→nvim
 
 ### How it works
 
