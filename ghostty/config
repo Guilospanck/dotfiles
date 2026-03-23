@@ -1,20 +1,27 @@
 # Shell — launch tmux automatically
 command = /bin/zsh --login -c tmux
 
-# Font
-font-family = FiraCode Nerd Font Mono
+# Dynamic theme colors (follows omarchy theme)
+config-file = ?"~/.config/omarchy/current/theme/ghostty.conf"
+
+# Font (managed by omarchy-font-set)
+font-family = "CaskaydiaMono Nerd Font"
 font-style = Regular
 font-style-bold = Bold
 font-style-italic = Italic
-font-size = 10
+font-size = 9
 
 # Window
+window-padding-x = 14
+window-padding-y = 14
 window-decoration = false
-background-opacity = 1
-window-padding-x = 4
-window-padding-y = 3
-maximize = true
-macos-option-as-alt = true
+confirm-close-surface = false
+resize-overlay = never
+
+# Cursor styling
+cursor-style = block
+cursor-style-blink = false
+shell-integration-features = no-cursor,ssh-env
 
 # Terminal
 term = xterm-256color
@@ -22,44 +29,23 @@ term = xterm-256color
 # Clipboard
 clipboard-read = allow
 
-# ──────────────────────────────────────────────
-# Rose Pine theme
-# ──────────────────────────────────────────────
-background = 191724
-foreground = e0def4
-cursor-color = 524f67
-selection-background = 403d52
-selection-foreground = e0def4
+# Scrolling
+mouse-scroll-multiplier = 0.95
 
-# Normal colors (palette 0-7)
-palette = 0=#26233a
-palette = 1=#eb6f92
-palette = 2=#31748f
-palette = 3=#f6c177
-palette = 4=#9ccfd8
-palette = 5=#c4a7e7
-palette = 6=#ebbcba
-palette = 7=#e0def4
-
-# Bright colors (palette 8-15)
-palette = 8=#6e6a86
-palette = 9=#eb6f92
-palette = 10=#31748f
-palette = 11=#f6c177
-palette = 12=#9ccfd8
-palette = 13=#c4a7e7
-palette = 14=#ebbcba
-palette = 15=#e0def4
+# Fix general slowness on hyprland (https://github.com/ghostty-org/ghostty/discussions/3224)
+async-backend = epoll
 
 # ──────────────────────────────────────────────
 # Keybindings
 # ──────────────────────────────────────────────
 
-# Unbind macOS defaults so Alt+Left/Right send proper Meta sequences to tmux
+# Unbind defaults so Alt+Left/Right reach tmux
 keybind = alt+left=unbind
 keybind = alt+right=unbind
 
-# Let Cmd+V paste through to the terminal (e.g. for pasting images into CLI tools)
+# Clipboard
+keybind = shift+insert=paste_from_clipboard
+keybind = control+insert=copy_to_clipboard
 keybind = super+v=paste_from_clipboard
 
 # Font size
@@ -67,7 +53,8 @@ keybind = ctrl+equal=increase_font_size:1
 keybind = ctrl+plus=increase_font_size:1
 keybind = ctrl+minus=decrease_font_size:1
 
-# New window
+# Fullscreen & new window
+keybind = f11=toggle_fullscreen
 keybind = super+shift+enter=new_window
 
 # Tmux/multiplexer controls (Unicode PUA chars passed to tmux)
@@ -81,14 +68,12 @@ keybind = super+g=text:\u{e137}
 keybind = alt+shift+f=text:\u{e123}
 keybind = super+b=text:\u{e124}
 keybind = super+p=text:\u{e125}
-keybind = super+f=text:\u{e127}
 keybind = ctrl+f=text:\u{e127}
 keybind = super+shift+f=text:\u{e128}
 keybind = super+semicolon=text:\u{e129}
 keybind = super+six=text:\x1b[54;5u
 keybind = alt+tab=text:\u{e130}
 keybind = ctrl+t=text:\u{e132}
-keybind = super+t=text:\u{e132}
 keybind = super+shift+l=text:\u{e133}
 keybind = super+j=text:\u{e134}
 keybind = super+k=text:\u{e135}
@@ -98,3 +83,9 @@ keybind = super+shift+m=text:\u{e140}
 keybind = super+shift+e=text:\u{e141}
 keybind = super+shift+a=text:\u{e142}
 keybind = super+shift+x=text:\u{e143}
+
+# Omarchy split resize
+keybind = super+control+shift+alt+arrow_down=resize_split:down,100
+keybind = super+control+shift+alt+arrow_up=resize_split:up,100
+keybind = super+control+shift+alt+arrow_left=resize_split:left,100
+keybind = super+control+shift+alt+arrow_right=resize_split:right,100

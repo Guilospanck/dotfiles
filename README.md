@@ -12,24 +12,57 @@ When you first install Omarchy, its default files/configs will reside at `~/.loc
 
 Then, to actually configure it for yourself, you're gonna do them via the configs at `~/.config/` (`~/.config/fcitx5/`, `~/.config/hypr/`, `~/.config/waybar/` etc). Those configs are the ones that will modify the default ones.
 
-## Symlink setup (for agents)
+## Setup after a fresh Omarchy install
 
-To set up the dotfiles, create symbolic links from this repository to the expected config locations. The following commands assume the repository is cloned at `$DOTFILES_DIR`.
+Clone this repo and switch to the `omarchy` branch:
 
 ```bash
-DOTFILES_DIR="$(cd "$(dirname "$0")" && pwd)"
-
-# Alacritty
-ln -sfn "$DOTFILES_DIR/alacritty" ~/.config/alacritty
-
-# Zellij
-ln -sfn "$DOTFILES_DIR/zellij" ~/.config/zellij
-
-# Ghostty
-ln -sfn "$DOTFILES_DIR/ghostty" ~/.config/ghostty
-
-# Tmux
-ln -sf "$DOTFILES_DIR/tmux/.tmux.conf" ~/.tmux.conf
+cd ~
+git clone <repo-url> dotfiles
+cd dotfiles
+git checkout omarchy
 ```
 
-> **Note:** Alacritty, Zellij, and Ghostty symlink the entire directory. Tmux symlinks the single `.tmux.conf` file to `~/.tmux.conf`.
+### Symlinks
+
+Remove the existing Omarchy defaults first, then symlink. Each command replaces `~/.config/<dir>` with a symlink to this repo:
+
+```bash
+DOTFILES_DIR=~/dotfiles
+
+# Ghostty (terminal) — uses omarchy dynamic theme + font
+rm -rf ~/.config/ghostty
+ln -sfn "$DOTFILES_DIR/ghostty" ~/.config/ghostty
+
+# Tmux (multiplexer) — launched automatically by ghostty
+rm -rf ~/.config/tmux
+ln -sfn "$DOTFILES_DIR/tmux" ~/.config/tmux
+
+# Hyprland (window manager)
+rm -rf ~/.config/hypr
+ln -sfn "$DOTFILES_DIR/hypr" ~/.config/hypr
+
+# Waybar (status bar)
+rm -rf ~/.config/waybar
+ln -sfn "$DOTFILES_DIR/waybar" ~/.config/waybar
+
+# Fcitx5 (input method)
+rm -rf ~/.config/fcitx5
+ln -sfn "$DOTFILES_DIR/fcitx5" ~/.config/fcitx5
+```
+
+### Zsh prompt
+
+Add the prompt to `~/.zshrc` (after Omarchy's default sourcing):
+
+```bash
+# Prompt: shortened path + %
+PROMPT='%F{blue}%~%f %# '
+```
+
+### How it works
+
+- **Ghostty** auto-launches tmux on startup and sends Unicode PUA characters for keybindings (Super+E for split, Super+N for new tab, etc.)
+- **Tmux** receives those PUA characters and maps them to actions (split-window, new-window, kill-pane, etc.)
+- **Theme** follows Omarchy automatically — Ghostty loads colors from `~/.config/omarchy/current/theme/ghostty.conf`, and tmux uses terminal color names (`blue`, `brightblack`) which resolve to the active theme palette
+- **Font** is managed by `omarchy-font-set` which updates the `font-family` line in the Ghostty config via sed
