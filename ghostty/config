@@ -1,5 +1,6 @@
 # Shell — launch tmux automatically
-command = /bin/zsh --login -c tmux
+# -A: attach to session "0" if it exists, else create it (avoids a new session per window)
+command = /bin/zsh --login -c "tmux new-session -A -s 0"
 
 # Font
 font-family = FiraCode Nerd Font Mono
