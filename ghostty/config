@@ -98,3 +98,12 @@ keybind = super+shift+m=text:\u{e140}
 keybind = super+shift+e=text:\u{e141}
 keybind = super+shift+a=text:\u{e142}
 keybind = super+shift+x=text:\u{e143}
+
+# Resize nvim windows: the arrow moves the window border that way.
+# Cmd+Right needs macOS shortcut "Move focus to active or next window"
+# (System Settings > Keyboard > Keyboard Shortcuts > Keyboard) disabled,
+# otherwise macOS grabs the key before Ghostty sees it.
+keybind = super+up=text:\u{e144}
+keybind = super+down=text:\u{e145}
+keybind = super+left=text:\u{e146}
+keybind = super+right=text:\u{e147}
