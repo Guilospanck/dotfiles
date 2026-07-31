@@ -1,1 +1,11 @@
 .claude
+
+# Backups created by `omarchy refresh` and by hand-editing
+*.bak
+*.bak.*
+
+# fcitx5 writes atomic-save temp files and a generated layout cache
+# into its config dir, which is symlinked here
+fcitx5/profile_*
+fcitx5/conf/*.conf_*
+fcitx5/conf/cached_layouts
