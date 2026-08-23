@@ -106,18 +106,31 @@ o.bind("SUPER + SHIFT + G", "GitHub", { webapp = "https://github.com/guilospanck
 o.bind("SUPER + SHIFT + K", "Show key bindings", "omarchy-menu-keybindings")
 o.bind("SUPER + SHIFT + J", "Toggle split", hl.dsp.layout("togglesplit")) -- dwindle
 
--- Close KeePassXC with a hard kill.
--- NOTE: this and the SUPER+W remap below are BOTH bound to SUPER+W on purpose --
--- `hyprctl binds` confirms Hyprland keeps both and fires both on press. Each is
--- guarded by its own class check, so only the matching branch does anything.
-o.bind("SUPER + W", "Close window", [[bash -lc 'CLASS=$(hyprctl -j activewindow | jq -r ".class // .initialClass // .app"); if [ "$CLASS" = "org.keepassxc.KeePassXC" ]; then pkill keepassxc; fi']])
-
--- Rebind SUPER -> Ctrl
+-- Close KeePassXC with a hard kill, and rebind SUPER+W -> CTRL+W elsewhere.
+--
+-- This was two separate SUPER+W binds shelling out to bash+jq+hyprctl, relying
+-- on Hyprland firing both and each guarding itself with a class check. Under the
+-- Lua config `hyprctl dispatch sendshortcut "CTRL,W,activewindow"` no longer
+-- parses, so that half failed silently on every press. Done natively now: one
+-- bind, one class lookup, no subprocesses.
+--
 -- W is conditional: Ghostty needs the raw SUPER+W (it maps it to the PUA char
 -- tmux binds to kill-pane). Sending CTRL+W too would leak ^W into the pane --
 -- harmless in zsh, but in nvim ^W is the window prefix and swallows the PUA char.
-o.bind("SUPER + W", nil, [[bash -lc 'CLASS=$(hyprctl -j activewindow | jq -r ".class // .initialClass // .app"); if [ "$CLASS" = "com.mitchellh.ghostty" ]; then hyprctl dispatch sendshortcut "SUPER,W,activewindow"; else hyprctl dispatch sendshortcut "CTRL,W,activewindow"; fi']])
+o.bind("SUPER + W", "Close window", function()
+  local window = hl.get_active_window()
+  local class = window and (window.class or window.initial_class) or ""
 
+  if class == "org.keepassxc.KeePassXC" then
+    hl.exec_cmd("pkill keepassxc")
+  elseif class == "com.mitchellh.ghostty" then
+    send_shortcut_once("SUPER", "W")()
+  else
+    send_shortcut_once("CTRL", "W")()
+  end
+end)
+
+-- Rebind SUPER -> Ctrl
 o.bind("SUPER + T", nil, send_shortcut_once("CTRL", "T"))
 o.bind("SUPER + A", nil, send_shortcut_once("CTRL", "A"))
 o.bind("SUPER + R", nil, send_shortcut_once("CTRL", "R"))
