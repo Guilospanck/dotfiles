@@ -1,0 +1,19 @@
+-- Change the default Omarchy look'n'feel
+
+-- https://wiki.hypr.land/Configuring/Basics/Variables/#general
+-- hl.config({
+--   general = {
+--     -- No gaps between windows
+--     gaps_in = 0,
+--     gaps_out = 0,
+--
+--     -- Use master layout instead of dwindle
+--     layout = "master",
+--   },
+--
+--   -- https://wiki.hypr.land/Configuring/Basics/Variables/#decoration
+--   decoration = {
+--     -- Use round window corners
+--     rounding = 8,
+--   },
+-- })
