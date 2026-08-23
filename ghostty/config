@@ -2,7 +2,7 @@
 command = /bin/zsh --login -c tmux
 
 # Dynamic theme colors (follows omarchy theme)
-config-file = ?"~/.config/omarchy/current/theme/ghostty.conf"
+config-file = ?"~/.local/state/omarchy/current/theme/ghostty.conf"
 
 # Font (managed by omarchy-font-set)
 font-family = "CaskaydiaMono Nerd Font"
