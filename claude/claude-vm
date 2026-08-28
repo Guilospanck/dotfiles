@@ -1,0 +1,152 @@
+#!/usr/bin/env bash
+#
+# claude-vm — run Claude Code inside a microsandbox microVM, anywhere.
+#
+# Isolates Claude Code from the host: only the current project dir is mounted
+# (rw) into the guest at /workspace. Auth/config/session state persist in the
+# VM's root disk, keyed per project, so resuming is instant.
+#
+# Docs: https://docs.microsandbox.dev/examples/agents/claude-code
+#
+# Usage:
+#   claude-vm                 # run claude in a VM for $PWD
+#   claude-vm --shell         # drop into a shell in the VM instead
+#   claude-vm --stop          # stop this project's VM
+#   claude-vm --rm            # stop + delete VM (wipes its auth/session state)
+#   claude-vm -- <args...>    # pass args straight to `claude`
+#
+# Env overrides:
+#   CLAUDE_VM_VERSION   npm version of @anthropic-ai/claude-code (default pinned)
+#   CLAUDE_VM_IMAGE     base OCI image           (default node:24-bookworm-slim)
+#   CLAUDE_VM_CPUS      vCPUs                     (default 2)
+#   CLAUDE_VM_MEMORY    RAM                       (default 4G)
+#   CLAUDE_VM_DISK      root disk                 (default 4G)
+#   CLAUDE_VM_MOUNT     host dir to mount as /workspace (default: $PWD)
+
+set -euo pipefail
+
+VERSION="${CLAUDE_VM_VERSION:-2.1.235}"
+# Default to the AWS ECR public mirror of Docker's official images: anonymous
+# pull, no Docker Hub rate limit / 401. Override with a Hub tag if you prefer.
+IMAGE="${CLAUDE_VM_IMAGE:-public.ecr.aws/docker/library/node:24-bookworm-slim}"
+CPUS="${CLAUDE_VM_CPUS:-2}"
+MEMORY="${CLAUDE_VM_MEMORY:-4G}"
+DISK="${CLAUDE_VM_DISK:-4G}"
+MOUNT_DIR="${CLAUDE_VM_MOUNT:-$PWD}"
+
+# --- resolve mount to an absolute path -------------------------------------
+MOUNT_DIR="$(cd "$MOUNT_DIR" && pwd)"
+
+# If inside a git repo, mount the repo ROOT (so .git is visible in the guest)
+# and remember the sub-path so we land in the same dir inside /workspace.
+SUBPATH=""
+if [ -z "${CLAUDE_VM_MOUNT:-}" ] && command -v git >/dev/null 2>&1; then
+  if root="$(cd "$MOUNT_DIR" && git rev-parse --show-toplevel 2>/dev/null)"; then
+    SUBPATH="${MOUNT_DIR#"$root"}"   # e.g. "" or "/sub/dir"
+    MOUNT_DIR="$root"
+  fi
+fi
+GUEST_WORKDIR="/workspace${SUBPATH}"
+
+# --- stable per-project VM name --------------------------------------------
+# Hash the absolute path so each project gets its own persistent VM.
+hash="$(printf '%s' "$MOUNT_DIR" | cksum | cut -d' ' -f1)"
+NAME="claude-vm-$(basename "$MOUNT_DIR")-${hash}"
+
+# --- ensure msb CLI is present ---------------------------------------------
+ensure_msb() {
+  if command -v msb >/dev/null 2>&1; then
+    return
+  fi
+  echo "msb (microsandbox) not found -> installing..." >&2
+  case "$(uname -s)" in
+    Linux|Darwin)
+      curl -fsSL https://install.microsandbox.dev | sh
+      ;;
+    *)
+      echo "Unsupported OS. Install msb manually: https://docs.microsandbox.dev" >&2
+      exit 1
+      ;;
+  esac
+  # install script drops msb in ~/.local/bin typically
+  if ! command -v msb >/dev/null 2>&1; then
+    export PATH="$HOME/.local/bin:$PATH"
+  fi
+  command -v msb >/dev/null 2>&1 || {
+    echo "msb still not on PATH. Add its install dir to PATH and re-run." >&2
+    exit 1
+  }
+}
+
+# --- does the VM already exist? --------------------------------------------
+vm_exists() {
+  msb list 2>/dev/null | grep -q "\b${NAME}\b"
+}
+
+boot_cmd() {
+  cat <<EOF
+apt-get update &&
+apt-get install -y --no-install-recommends ca-certificates git &&
+git config --global --add safe.directory /workspace &&
+npm install -g @anthropic-ai/claude-code@${VERSION} &&
+exec claude "\$@"
+EOF
+}
+
+start_fresh() {
+  echo "Booting new microVM '${NAME}' (image ${IMAGE}, ${CPUS} cpu / ${MEMORY} ram)..." >&2
+  msb run -t --name "$NAME" --replace \
+    --cpus "$CPUS" --memory "$MEMORY" --root-disk "$DISK" \
+    --mount-dir "${MOUNT_DIR}:/workspace:rw" \
+    --workdir "$GUEST_WORKDIR" \
+    "$IMAGE" -- sh -lc "$(boot_cmd)" _ "$@"
+}
+
+resume() {
+  echo "Resuming microVM '${NAME}'..." >&2
+  msb exec -t "$NAME" -- sh -lc 'cd "$1" && shift && exec claude "$@"' _ "$GUEST_WORKDIR" "$@"
+}
+
+main() {
+  local mode="run"
+  local passthru=()
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --shell) mode="shell"; shift ;;
+      --stop)  mode="stop";  shift ;;
+      --rm)    mode="rm";    shift ;;
+      --)      shift; passthru+=("$@"); break ;;
+      *)       passthru+=("$1"); shift ;;
+    esac
+  done
+
+  ensure_msb
+
+  case "$mode" in
+    stop)
+      msb stop "$NAME" && echo "Stopped ${NAME}." ;;
+    rm)
+      msb stop "$NAME" 2>/dev/null || true
+      msb remove "$NAME" 2>/dev/null || msb rm "$NAME"
+      echo "Removed ${NAME} (state wiped)." ;;
+    shell)
+      if vm_exists; then
+        msb exec -t "$NAME" -- sh -l
+      else
+        msb run -t --name "$NAME" --replace \
+          --cpus "$CPUS" --memory "$MEMORY" --root-disk "$DISK" \
+          --mount-dir "${MOUNT_DIR}:/workspace:rw" \
+          --workdir "$GUEST_WORKDIR" \
+          "$IMAGE" -- sh -l
+      fi ;;
+    run)
+      if vm_exists; then
+        resume ${passthru[@]+"${passthru[@]}"}
+      else
+        start_fresh ${passthru[@]+"${passthru[@]}"}
+      fi ;;
+  esac
+}
+
+main "$@"
