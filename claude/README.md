@@ -135,7 +135,7 @@ CLAUDE_VM_CONFIG_DIR=~/dotfiles/claude vm-claude          # copy from elsewhere
 Two caveats worth knowing:
 
 - **`settings.json` goes across as-is.** If yours has secrets in `env`, or `hooks` and a `statusLine` pointing at host scripts that don't exist in the guest, drop it from `CLAUDE_VM_CONFIG_ITEMS`.
-- **There's a size ceiling**, 96 KB of compressed payload by default, because it travels as a single command-line argument and Linux caps those at 128 KB. Over the limit, `vm-claude` says so and skips the copy rather than failing obscurely; trim `CLAUDE_VM_CONFIG_ITEMS` or raise `CLAUDE_VM_CONFIG_MAX_KB`.
+- **There's a size ceiling**, 120 KB of compressed payload by default, because it travels as a single command-line argument and Linux caps those at 128 KB — the default leaves a little headroom under that hard limit. Over the limit, `vm-claude` says so and skips the copy rather than failing obscurely; trim `CLAUDE_VM_CONFIG_ITEMS` or raise `CLAUDE_VM_CONFIG_MAX_KB`.
 
 ### Configuration
 
@@ -155,7 +155,7 @@ All configuration is via environment variables:
 | `CLAUDE_VM_CONFIG` | `1` | `1` copies the `~/.claude` allowlist into the guest; `0` skips it |
 | `CLAUDE_VM_CONFIG_DIR` | `~/.claude` | Host directory to copy that config from |
 | `CLAUDE_VM_CONFIG_ITEMS` | see [Claude config](#claude-config) | Space-separated allowlist of entries to copy |
-| `CLAUDE_VM_CONFIG_MAX_KB` | `96` | Size ceiling for the copied config, in KB |
+| `CLAUDE_VM_CONFIG_MAX_KB` | `120` | Size ceiling for the copied config, in KB |
 
 ```bash
 CLAUDE_VM_CPUS=4 CLAUDE_VM_MEMORY=8G vm-claude

@@ -34,7 +34,7 @@
 #                       guest; 0 leaves the guest with a virgin config
 #   CLAUDE_VM_CONFIG_DIR    host config dir to copy from (default ~/.claude)
 #   CLAUDE_VM_CONFIG_ITEMS  space-separated allowlist of entries to copy
-#   CLAUDE_VM_CONFIG_MAX_KB size ceiling for that payload  (default 96)
+#   CLAUDE_VM_CONFIG_MAX_KB size ceiling for that payload  (default 120)
 
 set -euo pipefail
 
@@ -56,7 +56,7 @@ HEAD_BEFORE=""
 CONFIG_SYNC="${CLAUDE_VM_CONFIG:-1}"
 CONFIG_SRC="${CLAUDE_VM_CONFIG_DIR:-$HOME/.claude}"
 CONFIG_ITEMS="${CLAUDE_VM_CONFIG_ITEMS:-CLAUDE.md settings.json keybindings.json agents commands skills hooks output-styles}"
-CONFIG_MAX_KB="${CLAUDE_VM_CONFIG_MAX_KB:-96}"
+CONFIG_MAX_KB="${CLAUDE_VM_CONFIG_MAX_KB:-120}"
 CONFIG_B64=""
 
 # --- resolve mount to an absolute path -------------------------------------
