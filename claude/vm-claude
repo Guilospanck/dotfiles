@@ -28,13 +28,16 @@
 #   CLAUDE_VM_DISK      root disk                 (default 4G)
 #   CLAUDE_VM_MOUNT     host dir to mount as /workspace (default: $PWD)
 #   CLAUDE_VM_SKIP_PERMISSIONS  1 (default) passes --dangerously-skip-permissions
-#   CLAUDE_VM_SIGN_ON_EXIT      1 makes --sign-on-exit the default
+#   CLAUDE_VM_SIGN_ON_EXIT      1/0 forces --sign-on-exit on/off (default: on
+#                               when the host has commit.gpgsign=true)
 #   CLAUDE_VM_TZ        timezone for the guest    (default: the host's)
 #   CLAUDE_VM_CONFIG    1 (default) ships a safe subset of ~/.claude into the
 #                       guest; 0 leaves the guest with a virgin config
 #   CLAUDE_VM_CONFIG_DIR    host config dir to copy from (default ~/.claude)
 #   CLAUDE_VM_CONFIG_ITEMS  space-separated allowlist of entries to copy
 #   CLAUDE_VM_CONFIG_MAX_KB size ceiling for that payload  (default 120)
+#   CLAUDE_VM_SETTINGS_STRIP  settings.json keys to drop in the guest
+#                       (default "hooks statusLine"; "" keeps everything)
 
 set -euo pipefail
 
@@ -47,8 +50,20 @@ MEMORY="${CLAUDE_VM_MEMORY:-4G}"
 DISK="${CLAUDE_VM_DISK:-4G}"
 MOUNT_DIR="${CLAUDE_VM_MOUNT:-$PWD}"
 SKIP_PERMISSIONS="${CLAUDE_VM_SKIP_PERMISSIONS:-1}"
-SIGN_ON_EXIT="${CLAUDE_VM_SIGN_ON_EXIT:-0}"
 HEAD_BEFORE=""
+
+# Default sign-on-exit ON when the host is already set up to sign commits
+# (commit.gpgsign=true) -- otherwise a VM session silently leaves a run of
+# unsigned commits behind, which is exactly what that host wanted to avoid. An
+# explicit CLAUDE_VM_SIGN_ON_EXIT wins; so do --sign-on-exit / --no-sign-on-exit.
+if [ -n "${CLAUDE_VM_SIGN_ON_EXIT:-}" ]; then
+  SIGN_ON_EXIT="$CLAUDE_VM_SIGN_ON_EXIT"
+elif command -v git >/dev/null 2>&1 \
+  && [ "$(git config --global --type=bool --get commit.gpgsign 2>/dev/null)" = "true" ]; then
+  SIGN_ON_EXIT=1
+else
+  SIGN_ON_EXIT=0
+fi
 
 # Which of the host's ~/.claude to carry into the guest. An allowlist, for the
 # same reason host_git_config is one: everything not named here — credentials,
@@ -58,6 +73,14 @@ CONFIG_SRC="${CLAUDE_VM_CONFIG_DIR:-$HOME/.claude}"
 CONFIG_ITEMS="${CLAUDE_VM_CONFIG_ITEMS:-CLAUDE.md settings.json keybindings.json agents commands skills hooks output-styles}"
 CONFIG_MAX_KB="${CLAUDE_VM_CONFIG_MAX_KB:-120}"
 CONFIG_B64=""
+
+# Top-level keys deleted from the shipped settings.json inside the guest. Both
+# defaults name host-side execution: `hooks` and `statusLine` run commands by
+# absolute path or host-only binary, none of which exist in the VM, so left in
+# they make every session event fire a hook that errors. This is a plain key
+# list, not tied to any particular config -- set it to "" to keep everything, or
+# add keys (e.g. "env") to drop more. Use `-` so an explicit "" means "keep all".
+CONFIG_STRIP="${CLAUDE_VM_SETTINGS_STRIP-hooks statusLine}"
 
 # --- resolve mount to an absolute path -------------------------------------
 MOUNT_DIR="$(cd "$MOUNT_DIR" && pwd)"
@@ -195,9 +218,17 @@ build_config_payload() {
   done
   [ ${#present[@]} -gt 0 ] || return 0
 
+  # macOS `tar` is bsdtar and stamps Apple xattrs (com.apple.provenance, ...)
+  # into the archive; GNU tar in the guest can't read them and warns once per
+  # file. Strip that metadata at the source so the payload is plain portable tar.
+  local tar_flags=()
+  case "$(uname -s)" in
+    Darwin) tar_flags=(--no-mac-metadata --no-xattrs) ;;
+  esac
+
   local b64 kb
   # `base64` wraps by default on some platforms and not others; unwrap always.
-  b64="$(tar -czf - -C "$CONFIG_SRC" "${present[@]}" 2>/dev/null | base64 | tr -d '\n')" || return 0
+  b64="$(tar ${tar_flags[@]+"${tar_flags[@]}"} -czf - -C "$CONFIG_SRC" "${present[@]}" 2>/dev/null | base64 | tr -d '\n')" || return 0
   [ -n "$b64" ] || return 0
 
   # The payload rides in an argv entry, and Linux caps a single argument at
@@ -219,7 +250,26 @@ config_restore_cmd() {
   [ -n "$CONFIG_B64" ] || return 0
   printf '%s\n' \
     'mkdir -p "$HOME/.claude" &&' \
-    'printf %s "$claude_config" | base64 -d | tar -xzf - -C "$HOME/.claude" &&'
+    'printf %s "$claude_config" | base64 -d | tar --warning=no-unknown-keyword -xzf - -C "$HOME/.claude" &&'
+}
+
+# Shell fragment (ending in `&&`) that deletes the CONFIG_STRIP keys from the
+# shipped settings.json and clears the macOS AppleDouble (._*) files the host tar
+# seeds. The JSON edit is done with node, which the node base image always
+# provides, so no jq/python is needed on the host. The key list rides in as an
+# env var; the node program itself is generic (delete whatever keys it's told).
+config_sanitize_cmd() {
+  [ -n "$CONFIG_B64" ] || return 0
+  local js b64 esc
+  if [ -n "$CONFIG_STRIP" ]; then
+    js='const fs=require("fs"),f=process.env.SETTINGS;try{const s=JSON.parse(fs.readFileSync(f,"utf8"));for(const k of (process.env.STRIP||"").split(/\s+/).filter(Boolean))delete s[k];fs.writeFileSync(f,JSON.stringify(s,null,2))}catch(e){}'
+    b64="$(printf '%s' "$js" | base64 | tr -d '\n')"
+    esc="$(printf '%s' "$CONFIG_STRIP" | sed "s/'/'\\\\''/g")"
+    printf '%s\n' \
+      "[ -f \"\$HOME/.claude/settings.json\" ] && printf %s '${b64}' | base64 -d | STRIP='${esc}' SETTINGS=\"\$HOME/.claude/settings.json\" node - || true &&"
+  fi
+  printf '%s\n' \
+    "find \"\$HOME/.claude\" -name '._*' -type f -delete 2>/dev/null || true &&"
 }
 
 # --- sign the VM's commits, on the host ------------------------------------
@@ -287,7 +337,13 @@ arm_sign_on_exit() {
   fi
 
   echo "sign-on-exit: armed at $(git -C "$MOUNT_DIR" rev-parse --short HEAD)." >&2
+  # Sign on a clean /q, and also when the session is interrupted or its terminal
+  # is closed -- Ctrl-C, SIGTERM, SIGHUP. The signal traps only exit; the EXIT
+  # trap does the signing, so it runs exactly once whichever way we go down.
   trap 'sign_new_commits "$HEAD_BEFORE"' EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+  trap 'exit 129' HUP
 }
 
 # $1 is the (possibly empty) config payload; the rest is claude's own argv.
@@ -301,6 +357,7 @@ git config --global --add safe.directory /workspace &&
 $(host_git_config)
 npm install -g @anthropic-ai/claude-code@${VERSION} &&
 $(config_restore_cmd)
+$(config_sanitize_cmd)
 export IS_SANDBOX=1 &&
 exec claude "\$@"
 EOF
@@ -320,15 +377,22 @@ start_fresh() {
 # the host's ~/.claude show up next run (and overwrite the guest's copy).
 resume() {
   echo "Resuming microVM '${NAME}'..." >&2
-  msb exec -t "$NAME" -- sh -lc '
-cd "$1" || exit 1; shift
-[ -n "$1" ] && export TZ="$1"; shift
-if [ -n "$1" ]; then
-  mkdir -p "$HOME/.claude" && printf %s "$1" | base64 -d | tar -xzf - -C "$HOME/.claude"
+  local script
+  script=$(cat <<EOF
+cd "\$1" || exit 1; shift
+[ -n "\$1" ] && export TZ="\$1"; shift
+if [ -n "\$1" ]; then
+  mkdir -p "\$HOME/.claude" &&
+  printf %s "\$1" | base64 -d | tar --warning=no-unknown-keyword -xzf - -C "\$HOME/.claude" &&
+  $(config_sanitize_cmd)
+  true
 fi
 shift
 export IS_SANDBOX=1
-exec claude "$@"' _ "$GUEST_WORKDIR" "$TZ_NAME" "$CONFIG_B64" "$@"
+exec claude "\$@"
+EOF
+)
+  msb exec -t "$NAME" -- sh -lc "$script" _ "$GUEST_WORKDIR" "$TZ_NAME" "$CONFIG_B64" "$@"
 }
 
 main() {

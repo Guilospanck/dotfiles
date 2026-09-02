@@ -78,7 +78,7 @@ No signing key and no git credentials are ever copied into the guest, so commits
 vm-claude --sign-on-exit
 ```
 
-It records `HEAD` before starting the VM and, when the VM exits, signs whatever was committed in the meantime with your host key. When it arms it says so — `sign-on-exit: armed at <sha>` — so an active hook is distinguishable from a flag you forgot to pass. `--shell` sessions are covered too. This works because `/workspace` **is** your host repo — the git root is what's mounted, so commits made in the guest are already real objects in the host's `.git`; only the signature is missing. The hook re-creates them out here, where the key lives:
+It records `HEAD` before starting the VM and, when the VM exits, signs whatever was committed in the meantime with your host key. When it arms it says so — `sign-on-exit: armed at <sha>` — so an active hook is distinguishable from a flag you forgot to pass. `--shell` sessions are covered too, and so are the messy exits: it signs on a clean `/q`, on Ctrl-C, and when you just close the terminal (`SIGINT`/`SIGTERM`/`SIGHUP`), not only on a graceful shutdown. This works because `/workspace` **is** your host repo — the git root is what's mounted, so commits made in the guest are already real objects in the host's `.git`; only the signature is missing. The hook re-creates them out here, where the key lives:
 
 ```bash
 git rebase --force-rebase --gpg-sign --autostash <HEAD before the VM ran>
@@ -86,7 +86,7 @@ git rebase --force-rebase --gpg-sign --autostash <HEAD before the VM ran>
 
 `--force-rebase` is the load-bearing flag. A plain `git rebase -S origin/main` onto an ancestor fast-forwards, re-creates no commits, and therefore signs nothing — a quiet no-op that looks like a signing failure.
 
-Set `CLAUDE_VM_SIGN_ON_EXIT=1` to make it the default (`--no-sign-on-exit` turns it off for one run). The hook deliberately does nothing and tells you so when it can't act safely: a detached `HEAD`, no new commits, or a history that diverged from where it started (a rebase or reset inside the VM), since rewriting from the old base would discard work. If the rebase itself fails it runs `git rebase --abort` and prints the command to retry by hand — it never leaves you mid-rebase.
+It's already the default when your host is set up to sign commits anyway — if `commit.gpgsign` is `true` in your global git config, every `vm-claude` run arms it without the flag. Set `CLAUDE_VM_SIGN_ON_EXIT=1` to force it on regardless (or `=0` / `--no-sign-on-exit` to turn it off for one run). The hook deliberately does nothing and tells you so when it can't act safely: a detached `HEAD`, no new commits, or a history that diverged from where it started (a rebase or reset inside the VM), since rewriting from the old base would discard work. If the rebase itself fails it runs `git rebase --abort` and prints the command to retry by hand — it never leaves you mid-rebase.
 
 Signing rewrites the commits, so their hashes change. Run it before pushing, not after.
 
@@ -124,6 +124,8 @@ The copy is a small gzipped tar inlined into the command that boots or resumes t
 
 It runs on resumes too, not just the first boot, so edits to your host config show up on the next run. The flip side: those specific files are overwritten in the guest each time, so config changes made *inside* the VM don't stick. Everything not on the allowlist — including the VM's login — is left alone.
 
+`settings.json` gets one edit on the way in: a configurable set of top-level keys is deleted from the guest's copy. The default is `hooks statusLine` — the two keys that shell out to host-side executables (hooks and status-line scripts run by absolute path or host-only binary), none of which exist in the VM, so left in place they'd make every session event fire a hook that errors. Everything else — model, effort, plugins, permissions — is kept. Change the list with `CLAUDE_VM_SETTINGS_STRIP` (space-separated keys; `""` keeps everything, `"hooks statusLine env"` also drops `env`). The edit happens on the copy inside the guest; your host `settings.json` is untouched.
+
 Tune it with:
 
 ```bash
@@ -134,7 +136,7 @@ CLAUDE_VM_CONFIG_DIR=~/dotfiles/claude vm-claude          # copy from elsewhere
 
 Two caveats worth knowing:
 
-- **`settings.json` goes across as-is.** If yours has secrets in `env`, or `hooks` and a `statusLine` pointing at host scripts that don't exist in the guest, drop it from `CLAUDE_VM_CONFIG_ITEMS`.
+- **`settings.json` goes across almost as-is.** `hooks` and `statusLine` are stripped in the guest (see above), but the rest is copied verbatim — so if yours has secrets in `env`, drop `settings.json` from `CLAUDE_VM_CONFIG_ITEMS`.
 - **There's a size ceiling**, 120 KB of compressed payload by default, because it travels as a single command-line argument and Linux caps those at 128 KB — the default leaves a little headroom under that hard limit. Over the limit, `vm-claude` says so and skips the copy rather than failing obscurely; trim `CLAUDE_VM_CONFIG_ITEMS` or raise `CLAUDE_VM_CONFIG_MAX_KB`.
 
 ### Configuration
@@ -150,12 +152,13 @@ All configuration is via environment variables:
 | `CLAUDE_VM_DISK` | `4G` | Root disk size |
 | `CLAUDE_VM_MOUNT` | git repo root of `$PWD`, else `$PWD` | Host directory mounted as `/workspace` |
 | `CLAUDE_VM_SKIP_PERMISSIONS` | `1` | `1` passes `--dangerously-skip-permissions`; `0` keeps the prompts |
-| `CLAUDE_VM_SIGN_ON_EXIT` | `0` | `1` makes `--sign-on-exit` the default |
+| `CLAUDE_VM_SIGN_ON_EXIT` | host `commit.gpgsign` | `1`/`0` forces `--sign-on-exit` on/off; unset, it defaults on when the host has `commit.gpgsign=true` |
 | `CLAUDE_VM_TZ` | the host's zone | Timezone for the guest, e.g. `Europe/Lisbon` |
 | `CLAUDE_VM_CONFIG` | `1` | `1` copies the `~/.claude` allowlist into the guest; `0` skips it |
 | `CLAUDE_VM_CONFIG_DIR` | `~/.claude` | Host directory to copy that config from |
 | `CLAUDE_VM_CONFIG_ITEMS` | see [Claude config](#claude-config) | Space-separated allowlist of entries to copy |
 | `CLAUDE_VM_CONFIG_MAX_KB` | `120` | Size ceiling for the copied config, in KB |
+| `CLAUDE_VM_SETTINGS_STRIP` | `hooks statusLine` | Space-separated `settings.json` keys to drop in the guest; `""` keeps everything |
 
 ```bash
 CLAUDE_VM_CPUS=4 CLAUDE_VM_MEMORY=8G vm-claude
