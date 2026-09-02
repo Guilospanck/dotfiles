@@ -39,6 +39,7 @@ vm-claude                 # run claude in a VM for the current project
 vm-claude --shell         # drop into a shell in the VM instead of running claude
 vm-claude --stop          # stop this project's VM
 vm-claude --rm            # stop + delete the VM (wipes its auth/session state)
+vm-claude --sign-on-exit  # sign the commits the VM made, on the host, on exit
 vm-claude -- <args...>    # pass args straight through to `claude`
 ```
 
@@ -67,11 +68,37 @@ CLAUDE_VM_SKIP_PERMISSIONS=0 vm-claude
 
 Note that the flag applies to the *filesystem* only. Claude still has network access from inside the VM (see the caveats below), so treat a `vm-claude` session as unattended-but-online.
 
+### Signing commits
+
+No signing key and no git credentials are ever copied into the guest, so commits made in the VM are unsigned and pushing from inside doesn't work. That's deliberate — but it means a VM session leaves a run of unsigned commits behind.
+
+`--sign-on-exit` closes that gap on the host side:
+
+```bash
+vm-claude --sign-on-exit
+```
+
+It records `HEAD` before starting the VM and, when the VM exits, signs whatever was committed in the meantime with your host key. This works because `/workspace` **is** your host repo — the git root is what's mounted, so commits made in the guest are already real objects in the host's `.git`; only the signature is missing. The hook re-creates them out here, where the key lives:
+
+```bash
+git rebase --force-rebase --gpg-sign --autostash <HEAD before the VM ran>
+```
+
+`--force-rebase` is the load-bearing flag. A plain `git rebase -S origin/main` onto an ancestor fast-forwards, re-creates no commits, and therefore signs nothing — a quiet no-op that looks like a signing failure.
+
+Set `CLAUDE_VM_SIGN_ON_EXIT=1` to make it the default (`--no-sign-on-exit` turns it off for one run). The hook deliberately does nothing and tells you so when it can't act safely: a detached `HEAD`, no new commits, or a history that diverged from where it started (a rebase or reset inside the VM), since rewriting from the old base would discard work. If the rebase itself fails it runs `git rebase --abort` and prints the command to retry by hand — it never leaves you mid-rebase.
+
+Signing rewrites the commits, so their hashes change. Run it before pushing, not after.
+
+### Timezone
+
+The base image runs UTC, which would stamp every commit made in the VM with a `+0000` offset while your host commits carry the real local one. `vm-claude` installs `tzdata` in the guest and pins its clock to the host's zone — read from `$TZ`, `/etc/timezone`, or the `/etc/localtime` symlink, whichever answers first. Override with `CLAUDE_VM_TZ=Europe/Lisbon`; an unrecognizable value is ignored rather than passed through.
+
 ### How it works
 
 1. The mount directory (default `$PWD`) is resolved to an absolute path. If it's inside a git repo, the **repo root** is mounted instead, so `.git` is visible in the guest, and the sub-path is remembered so you land in the equivalent directory under `/workspace`.
 2. That path is hashed, producing a stable VM name like `vm-claude-my-project-1234567890`. Each project therefore gets its own persistent VM.
-3. **First run** — `msb run` boots the base image with the project mounted at `/workspace`, then inside the guest installs `ca-certificates` and `git`, copies over a safe subset of your host git config (see below), runs `npm install -g @anthropic-ai/claude-code@<version>`, and execs `claude`.
+3. **First run** — `msb run` boots the base image with the project mounted at `/workspace`, then inside the guest installs `ca-certificates`, `git`, and `tzdata`, pins the timezone, copies over a safe subset of your host git config (see below), runs `npm install -g @anthropic-ai/claude-code@<version>`, and execs `claude`.
 4. **Later runs** — the VM already exists, so it's resumed with `msb exec` and `claude` starts immediately. No reinstall, and you stay logged in.
 5. `--stop` shuts the VM down but keeps its disk. `--rm` deletes it, which also destroys the stored credentials and session history for that project.
 
@@ -81,7 +108,7 @@ Because the install happens on first boot, expect the first run in a project to 
 
 So that commits made in the VM aren't authored by `root@<vm>`, the first boot copies an explicit allowlist of `git config --global` values from the host: `user.name`, `user.email`, `init.defaultBranch`, `pull.rebase`, `push.default`, `push.autoSetupRemote`, `rebase.autostash`, `fetch.prune`, `merge.conflictstyle`, `diff.colorMoved`, `color.ui`, and all your `alias.*` entries.
 
-Anything that could carry a secret — `credential.*`, `*.token`, `user.signingkey`, `gpg.*`, `http.*`, `url.*.insteadOf`, `sendemail.*` — is deliberately **not** copied. There are no host credentials in the guest, so pushing from inside the VM won't work out of the box.
+Anything that could carry a secret — `credential.*`, `*.token`, `user.signingkey`, `gpg.*`, `http.*`, `url.*.insteadOf`, `sendemail.*` — is deliberately **not** copied. There are no host credentials in the guest, so pushing from inside the VM won't work out of the box, and commits come out unsigned; see [Signing commits](#signing-commits).
 
 ### Configuration
 
@@ -96,6 +123,8 @@ All configuration is via environment variables:
 | `CLAUDE_VM_DISK` | `4G` | Root disk size |
 | `CLAUDE_VM_MOUNT` | git repo root of `$PWD`, else `$PWD` | Host directory mounted as `/workspace` |
 | `CLAUDE_VM_SKIP_PERMISSIONS` | `1` | `1` passes `--dangerously-skip-permissions`; `0` keeps the prompts |
+| `CLAUDE_VM_SIGN_ON_EXIT` | `0` | `1` makes `--sign-on-exit` the default |
+| `CLAUDE_VM_TZ` | the host's zone | Timezone for the guest, e.g. `Europe/Lisbon` |
 
 ```bash
 CLAUDE_VM_CPUS=4 CLAUDE_VM_MEMORY=8G vm-claude

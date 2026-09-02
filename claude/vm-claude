@@ -13,6 +13,7 @@
 #   vm-claude --shell         # drop into a shell in the VM instead
 #   vm-claude --stop          # stop this project's VM
 #   vm-claude --rm            # stop + delete VM (wipes its auth/session state)
+#   vm-claude --sign-on-exit  # sign the VM's commits on the host when it exits
 #   vm-claude -- <args...>    # pass args straight to `claude`
 #
 # claude runs with --dangerously-skip-permissions by default: the microVM is
@@ -27,6 +28,8 @@
 #   CLAUDE_VM_DISK      root disk                 (default 4G)
 #   CLAUDE_VM_MOUNT     host dir to mount as /workspace (default: $PWD)
 #   CLAUDE_VM_SKIP_PERMISSIONS  1 (default) passes --dangerously-skip-permissions
+#   CLAUDE_VM_SIGN_ON_EXIT      1 makes --sign-on-exit the default
+#   CLAUDE_VM_TZ        timezone for the guest    (default: the host's)
 
 set -euo pipefail
 
@@ -39,6 +42,8 @@ MEMORY="${CLAUDE_VM_MEMORY:-4G}"
 DISK="${CLAUDE_VM_DISK:-4G}"
 MOUNT_DIR="${CLAUDE_VM_MOUNT:-$PWD}"
 SKIP_PERMISSIONS="${CLAUDE_VM_SKIP_PERMISSIONS:-1}"
+SIGN_ON_EXIT="${CLAUDE_VM_SIGN_ON_EXIT:-0}"
+HEAD_BEFORE=""
 
 # --- resolve mount to an absolute path -------------------------------------
 MOUNT_DIR="$(cd "$MOUNT_DIR" && pwd)"
@@ -58,6 +63,39 @@ GUEST_WORKDIR="/workspace${SUBPATH}"
 # Hash the absolute path so each project gets its own persistent VM.
 hash="$(printf '%s' "$MOUNT_DIR" | cksum | cut -d' ' -f1)"
 NAME="vm-claude-$(basename "$MOUNT_DIR")-${hash}"
+
+# --- host timezone ---------------------------------------------------------
+# The guest is UTC otherwise, which shows up as a +0000 offset on every commit
+# made inside the VM while host commits carry the real local offset.
+host_timezone() {
+  local tz="${CLAUDE_VM_TZ:-${TZ:-}}"
+
+  if [ -z "$tz" ] && [ -r /etc/timezone ]; then
+    tz="$(cat /etc/timezone 2>/dev/null)"
+  fi
+  # macOS and most Linux: /etc/localtime -> .../zoneinfo/Europe/Lisbon
+  if [ -z "$tz" ] && [ -L /etc/localtime ]; then
+    local target
+    target="$(readlink /etc/localtime)"
+    tz="${target##*zoneinfo/}"
+  fi
+
+  # Only accept a plausible Area/City name. This gets inlined into a command
+  # run in the guest, so anything unexpected is dropped rather than escaped.
+  case "$tz" in
+    ''|/*|*[!A-Za-z0-9_/+-]*) tz="" ;;
+  esac
+  printf '%s' "$tz"
+}
+
+TZ_NAME="$(host_timezone)"
+
+# Shell fragment (ending in `&&`) that pins the guest clock, or nothing.
+tz_setup_cmd() {
+  [ -n "$TZ_NAME" ] || return 0
+  printf 'ln -sf /usr/share/zoneinfo/%s /etc/localtime && printf %s > /etc/timezone && export TZ=%s &&\n' \
+    "$TZ_NAME" "$TZ_NAME" "$TZ_NAME"
+}
 
 # --- ensure msb CLI is present ---------------------------------------------
 ensure_msb() {
@@ -116,10 +154,57 @@ host_git_config() {
   done
 }
 
+# --- sign the VM's commits, on the host ------------------------------------
+# /workspace IS the host repo (we mount the git root), so commits made in the
+# guest are already real objects in the host's .git — they just carry no
+# signature, because no signing key is ever copied in. Re-create them out here,
+# where the key lives. --force-rebase is required: a plain rebase onto an
+# ancestor fast-forwards, re-creates nothing, and so signs nothing.
+host_head() {
+  git -C "$MOUNT_DIR" rev-parse HEAD 2>/dev/null || true
+}
+
+sign_new_commits() {
+  local before="$1" after branch n
+  after="$(host_head)"
+
+  [ -n "$before" ] && [ -n "$after" ] || return 0
+  if [ "$before" = "$after" ]; then
+    echo "sign-on-exit: no new commits." >&2
+    return 0
+  fi
+
+  branch="$(git -C "$MOUNT_DIR" symbolic-ref --quiet --short HEAD 2>/dev/null || true)"
+  if [ -z "$branch" ]; then
+    echo "sign-on-exit: HEAD is detached, skipping." >&2
+    echo "  sign manually: git -C '${MOUNT_DIR}' rebase -f -S ${before}" >&2
+    return 0
+  fi
+
+  # If claude rebased or reset rather than just committing, $before is no
+  # longer an ancestor and rewriting from it would discard work. Bail instead.
+  if ! git -C "$MOUNT_DIR" merge-base --is-ancestor "$before" "$after" 2>/dev/null; then
+    echo "sign-on-exit: history diverged from ${before}, skipping to avoid rewriting it." >&2
+    return 0
+  fi
+
+  n="$(git -C "$MOUNT_DIR" rev-list --count "${before}..${after}" 2>/dev/null || echo 0)"
+  echo "sign-on-exit: signing ${n} new commit(s) on ${branch}..." >&2
+
+  if git -C "$MOUNT_DIR" rebase --force-rebase --gpg-sign --autostash "$before" >/dev/null 2>&1; then
+    echo "sign-on-exit: done, ${branch} is now $(git -C "$MOUNT_DIR" rev-parse --short HEAD)." >&2
+  else
+    git -C "$MOUNT_DIR" rebase --abort >/dev/null 2>&1 || true
+    echo "sign-on-exit: rebase failed, nothing rewritten." >&2
+    echo "  retry manually: git -C '${MOUNT_DIR}' rebase -f -S ${before}" >&2
+  fi
+}
+
 boot_cmd() {
   cat <<EOF
 apt-get update &&
-apt-get install -y --no-install-recommends ca-certificates git &&
+apt-get install -y --no-install-recommends ca-certificates git tzdata &&
+$(tz_setup_cmd)
 git config --global --add safe.directory /workspace &&
 $(host_git_config)
 npm install -g @anthropic-ai/claude-code@${VERSION} &&
@@ -137,9 +222,10 @@ start_fresh() {
     "$IMAGE" -- sh -lc "$(boot_cmd)" _ "$@"
 }
 
+# TZ is passed as a positional arg rather than spliced into the script text.
 resume() {
   echo "Resuming microVM '${NAME}'..." >&2
-  msb exec -t "$NAME" -- sh -lc 'cd "$1" && shift && export IS_SANDBOX=1 && exec claude "$@"' _ "$GUEST_WORKDIR" "$@"
+  msb exec -t "$NAME" -- sh -lc 'cd "$1" || exit 1; shift; [ -n "$1" ] && export TZ="$1"; shift; export IS_SANDBOX=1; exec claude "$@"' _ "$GUEST_WORKDIR" "$TZ_NAME" "$@"
 }
 
 main() {
@@ -151,6 +237,8 @@ main() {
       --shell) mode="shell"; shift ;;
       --stop)  mode="stop";  shift ;;
       --rm)    mode="rm";    shift ;;
+      --sign-on-exit)    SIGN_ON_EXIT=1; shift ;;
+      --no-sign-on-exit) SIGN_ON_EXIT=0; shift ;;
       --)      shift; passthru+=("$@"); break ;;
       *)       passthru+=("$1"); shift ;;
     esac
@@ -181,6 +269,14 @@ main() {
       # default; IS_SANDBOX=1 in the guest is what lets the flag work as root.
       if [ "$SKIP_PERMISSIONS" != "0" ]; then
         passthru=(--dangerously-skip-permissions ${passthru[@]+"${passthru[@]}"})
+      fi
+      # Note HEAD now; the trap signs whatever the VM added, on any exit path.
+      if [ "$SIGN_ON_EXIT" = "1" ]; then
+        if [ -z "$(git -C "$MOUNT_DIR" config --get user.signingkey 2>/dev/null)" ]; then
+          echo "warning: --sign-on-exit given but user.signingkey is unset on the host." >&2
+        fi
+        HEAD_BEFORE="$(host_head)"
+        trap 'sign_new_commits "$HEAD_BEFORE"' EXIT
       fi
       if vm_exists; then
         resume ${passthru[@]+"${passthru[@]}"}
