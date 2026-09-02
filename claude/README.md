@@ -16,7 +16,7 @@ The point is isolation: the guest sees **only the current project**, mounted rea
 
 Because the VM is already the sandbox, `claude` is started with `--dangerously-skip-permissions` by default — no permission prompts inside the box. See [Permissions](#permissions).
 
-Auth, config, and session state live in the VM's own root disk and are keyed per project, so signing in and resuming happen once per project rather than once per run.
+Auth, config, and session state live in the VM's own root disk and are keyed per project, so signing in and resuming happen once per project rather than once per run. Your own Claude configuration — global `CLAUDE.md`, settings, custom agents and commands — is carried in from the host on every run; see [Claude config](#claude-config).
 
 ### Requirements
 
@@ -100,8 +100,8 @@ The base image runs UTC, which would stamp every commit made in the VM with a `+
 
 1. The mount directory (default `$PWD`) is resolved to an absolute path. If it's inside a git repo, the **repo root** is mounted instead, so `.git` is visible in the guest, and the sub-path is remembered so you land in the equivalent directory under `/workspace`.
 2. That path is hashed, producing a stable VM name like `vm-claude-my-project-1234567890`. Each project therefore gets its own persistent VM.
-3. **First run** — `msb run` boots the base image with the project mounted at `/workspace`, then inside the guest installs `ca-certificates`, `git`, and `tzdata`, pins the timezone, copies over a safe subset of your host git config (see below), runs `npm install -g @anthropic-ai/claude-code@<version>`, and execs `claude`.
-4. **Later runs** — the VM already exists, so it's resumed with `msb exec` and `claude` starts immediately. No reinstall, and you stay logged in.
+3. **First run** — `msb run` boots the base image with the project mounted at `/workspace`, then inside the guest installs `ca-certificates`, `git`, and `tzdata`, pins the timezone, copies over a safe subset of your host git config (see below), runs `npm install -g @anthropic-ai/claude-code@<version>`, unpacks a safe subset of your `~/.claude` config (see below), and execs `claude`.
+4. **Later runs** — the VM already exists, so it's resumed with `msb exec` and `claude` starts immediately. No reinstall, and you stay logged in; the `~/.claude` subset is refreshed from the host on the way in.
 5. `--stop` shuts the VM down but keeps its disk. `--rm` deletes it, which also destroys the stored credentials and session history for that project.
 
 Because the install happens on first boot, expect the first run in a project to take a minute or two; subsequent runs are fast.
@@ -111,6 +111,31 @@ Because the install happens on first boot, expect the first run in a project to 
 So that commits made in the VM aren't authored by `root@<vm>`, the first boot copies an explicit allowlist of `git config --global` values from the host: `user.name`, `user.email`, `init.defaultBranch`, `pull.rebase`, `push.default`, `push.autoSetupRemote`, `rebase.autostash`, `fetch.prune`, `merge.conflictstyle`, `diff.colorMoved`, `color.ui`, and all your `alias.*` entries.
 
 Anything that could carry a secret — `credential.*`, `*.token`, `user.signingkey`, `gpg.*`, `http.*`, `url.*.insteadOf`, `sendemail.*` — is deliberately **not** copied. There are no host credentials in the guest, so pushing from inside the VM won't work out of the box, and commits come out unsigned; see [Signing commits](#signing-commits).
+
+### Claude config
+
+The guest has its own `~/.claude` — that's where its auth and session state live — so without help it would start with none of your actual configuration: no global `CLAUDE.md`, no settings, no custom agents or commands. On every run `vm-claude` copies an allowlist of your host config in:
+
+`CLAUDE.md`, `settings.json`, `keybindings.json`, `agents/`, `commands/`, `skills/`, `hooks/`, `output-styles/`
+
+Everything else in `~/.claude` stays on the host. In particular `.credentials.json`, `history.jsonl`, `projects/` (the transcripts of every project you've ever run Claude in), `sessions/`, `shell-snapshots/` and the plugin repos are never sent — you still sign in separately inside each VM.
+
+The copy is a small gzipped tar inlined into the command that boots or resumes the VM, **not** a second mount. Mounting `~/.claude` would have been simpler, but it would put your credentials and every other project's transcripts inside the box for the VM's whole lifetime, which is the thing this tool exists to prevent.
+
+It runs on resumes too, not just the first boot, so edits to your host config show up on the next run. The flip side: those specific files are overwritten in the guest each time, so config changes made *inside* the VM don't stick. Everything not on the allowlist — including the VM's login — is left alone.
+
+Tune it with:
+
+```bash
+CLAUDE_VM_CONFIG=0 vm-claude                              # don't copy anything
+CLAUDE_VM_CONFIG_ITEMS="CLAUDE.md agents" vm-claude       # copy just these
+CLAUDE_VM_CONFIG_DIR=~/dotfiles/claude vm-claude          # copy from elsewhere
+```
+
+Two caveats worth knowing:
+
+- **`settings.json` goes across as-is.** If yours has secrets in `env`, or `hooks` and a `statusLine` pointing at host scripts that don't exist in the guest, drop it from `CLAUDE_VM_CONFIG_ITEMS`.
+- **There's a size ceiling**, 96 KB of compressed payload by default, because it travels as a single command-line argument and Linux caps those at 128 KB. Over the limit, `vm-claude` says so and skips the copy rather than failing obscurely; trim `CLAUDE_VM_CONFIG_ITEMS` or raise `CLAUDE_VM_CONFIG_MAX_KB`.
 
 ### Configuration
 
@@ -127,6 +152,10 @@ All configuration is via environment variables:
 | `CLAUDE_VM_SKIP_PERMISSIONS` | `1` | `1` passes `--dangerously-skip-permissions`; `0` keeps the prompts |
 | `CLAUDE_VM_SIGN_ON_EXIT` | `0` | `1` makes `--sign-on-exit` the default |
 | `CLAUDE_VM_TZ` | the host's zone | Timezone for the guest, e.g. `Europe/Lisbon` |
+| `CLAUDE_VM_CONFIG` | `1` | `1` copies the `~/.claude` allowlist into the guest; `0` skips it |
+| `CLAUDE_VM_CONFIG_DIR` | `~/.claude` | Host directory to copy that config from |
+| `CLAUDE_VM_CONFIG_ITEMS` | see [Claude config](#claude-config) | Space-separated allowlist of entries to copy |
+| `CLAUDE_VM_CONFIG_MAX_KB` | `96` | Size ceiling for the copied config, in KB |
 
 ```bash
 CLAUDE_VM_CPUS=4 CLAUDE_VM_MEMORY=8G vm-claude
@@ -139,7 +168,7 @@ Setting `CLAUDE_VM_MOUNT` explicitly also disables the git-root detection: the d
 
 ### Notes and caveats
 
-- **Sign-in is per project.** Because state lives in the per-project VM disk, the first run in each new project asks you to authenticate again. `--rm` resets that.
+- **Sign-in is per project.** Because state lives in the per-project VM disk, the first run in each new project asks you to authenticate again. Credentials are never copied from the host — only the config allowlist is. `--rm` resets that.
 - **The VM has network access**, which is what makes `npm install` and the Claude API work. Isolation here is about the filesystem, not the network.
 - **Only `/workspace` persists on the host.** Anything Claude writes elsewhere in the guest lives in the VM disk and disappears with `--rm`.
 - **Changing `CLAUDE_VM_VERSION` doesn't upgrade an existing VM** — the install only runs on first boot. Use `vm-claude --rm` and start fresh, or upgrade from inside `vm-claude --shell`.

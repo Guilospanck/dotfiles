@@ -30,6 +30,11 @@
 #   CLAUDE_VM_SKIP_PERMISSIONS  1 (default) passes --dangerously-skip-permissions
 #   CLAUDE_VM_SIGN_ON_EXIT      1 makes --sign-on-exit the default
 #   CLAUDE_VM_TZ        timezone for the guest    (default: the host's)
+#   CLAUDE_VM_CONFIG    1 (default) ships a safe subset of ~/.claude into the
+#                       guest; 0 leaves the guest with a virgin config
+#   CLAUDE_VM_CONFIG_DIR    host config dir to copy from (default ~/.claude)
+#   CLAUDE_VM_CONFIG_ITEMS  space-separated allowlist of entries to copy
+#   CLAUDE_VM_CONFIG_MAX_KB size ceiling for that payload  (default 96)
 
 set -euo pipefail
 
@@ -44,6 +49,15 @@ MOUNT_DIR="${CLAUDE_VM_MOUNT:-$PWD}"
 SKIP_PERMISSIONS="${CLAUDE_VM_SKIP_PERMISSIONS:-1}"
 SIGN_ON_EXIT="${CLAUDE_VM_SIGN_ON_EXIT:-0}"
 HEAD_BEFORE=""
+
+# Which of the host's ~/.claude to carry into the guest. An allowlist, for the
+# same reason host_git_config is one: everything not named here — credentials,
+# history, transcripts, other projects' state — stays on the host.
+CONFIG_SYNC="${CLAUDE_VM_CONFIG:-1}"
+CONFIG_SRC="${CLAUDE_VM_CONFIG_DIR:-$HOME/.claude}"
+CONFIG_ITEMS="${CLAUDE_VM_CONFIG_ITEMS:-CLAUDE.md settings.json keybindings.json agents commands skills hooks output-styles}"
+CONFIG_MAX_KB="${CLAUDE_VM_CONFIG_MAX_KB:-96}"
+CONFIG_B64=""
 
 # --- resolve mount to an absolute path -------------------------------------
 MOUNT_DIR="$(cd "$MOUNT_DIR" && pwd)"
@@ -154,6 +168,60 @@ host_git_config() {
   done
 }
 
+# --- host ~/.claude config -------------------------------------------------
+# The guest keeps its own ~/.claude (that's where its auth and sessions live),
+# so out of the box it has none of the user's actual configuration: no global
+# CLAUDE.md, no settings, no custom agents/commands/skills.
+#
+# Ship those across as a gzipped tar, base64'd and inlined into the command we
+# already run in the guest. Deliberately NOT a second --mount-dir: a mount of
+# ~/.claude would put .credentials.json and every other project's transcripts
+# inside the box for the life of the VM, which is exactly what this tool exists
+# to avoid. Only the allowlisted entries ever leave the host.
+#
+# Prints the base64 payload on stdout, or nothing if there is nothing to send.
+build_config_payload() {
+  [ "$CONFIG_SYNC" != "0" ] || return 0
+  [ -d "$CONFIG_SRC" ] || return 0
+  command -v tar >/dev/null 2>&1 && command -v base64 >/dev/null 2>&1 || {
+    echo "warning: tar/base64 not found on the host, skipping ~/.claude config." >&2
+    return 0
+  }
+
+  # CONFIG_ITEMS is intentionally split on whitespace; entries can't contain it.
+  local present=() item
+  for item in $CONFIG_ITEMS; do
+    [ -e "${CONFIG_SRC}/${item}" ] && present+=("$item")
+  done
+  [ ${#present[@]} -gt 0 ] || return 0
+
+  local b64 kb
+  # `base64` wraps by default on some platforms and not others; unwrap always.
+  b64="$(tar -czf - -C "$CONFIG_SRC" "${present[@]}" 2>/dev/null | base64 | tr -d '\n')" || return 0
+  [ -n "$b64" ] || return 0
+
+  # The payload rides in an argv entry, and Linux caps a single argument at
+  # 128 KiB. Refuse rather than get killed with a confusing E2BIG.
+  kb=$(( ${#b64} / 1024 ))
+  if [ "$kb" -gt "$CONFIG_MAX_KB" ]; then
+    echo "warning: ~/.claude subset is ${kb}KB (limit ${CONFIG_MAX_KB}KB), not copying into the guest." >&2
+    echo "  trim it with CLAUDE_VM_CONFIG_ITEMS, or raise CLAUDE_VM_CONFIG_MAX_KB." >&2
+    return 0
+  fi
+
+  printf '%s' "$b64"
+}
+
+# Shell fragment (ending in `&&`) that unpacks the payload from $claude_config
+# into the guest's ~/.claude, or nothing when there is no payload. Only the
+# allowlisted paths are overwritten; the VM's credentials and sessions survive.
+config_restore_cmd() {
+  [ -n "$CONFIG_B64" ] || return 0
+  printf '%s\n' \
+    'mkdir -p "$HOME/.claude" &&' \
+    'printf %s "$claude_config" | base64 -d | tar -xzf - -C "$HOME/.claude" &&'
+}
+
 # --- sign the VM's commits, on the host ------------------------------------
 # /workspace IS the host repo (we mount the git root), so commits made in the
 # guest are already real objects in the host's .git — they just carry no
@@ -222,14 +290,17 @@ arm_sign_on_exit() {
   trap 'sign_new_commits "$HEAD_BEFORE"' EXIT
 }
 
+# $1 is the (possibly empty) config payload; the rest is claude's own argv.
 boot_cmd() {
   cat <<EOF
+claude_config="\$1" && shift &&
 apt-get update &&
 apt-get install -y --no-install-recommends ca-certificates git tzdata &&
 $(tz_setup_cmd)
 git config --global --add safe.directory /workspace &&
 $(host_git_config)
 npm install -g @anthropic-ai/claude-code@${VERSION} &&
+$(config_restore_cmd)
 export IS_SANDBOX=1 &&
 exec claude "\$@"
 EOF
@@ -241,13 +312,23 @@ start_fresh() {
     --cpus "$CPUS" --memory "$MEMORY" --root-disk "$DISK" \
     --mount-dir "${MOUNT_DIR}:/workspace:rw" \
     --workdir "$GUEST_WORKDIR" \
-    "$IMAGE" -- sh -lc "$(boot_cmd)" _ "$@"
+    "$IMAGE" -- sh -lc "$(boot_cmd)" _ "$CONFIG_B64" "$@"
 }
 
-# TZ is passed as a positional arg rather than spliced into the script text.
+# TZ and the config payload are passed as positional args rather than spliced
+# into the script text. The config is re-applied on every resume, so edits to
+# the host's ~/.claude show up next run (and overwrite the guest's copy).
 resume() {
   echo "Resuming microVM '${NAME}'..." >&2
-  msb exec -t "$NAME" -- sh -lc 'cd "$1" || exit 1; shift; [ -n "$1" ] && export TZ="$1"; shift; export IS_SANDBOX=1; exec claude "$@"' _ "$GUEST_WORKDIR" "$TZ_NAME" "$@"
+  msb exec -t "$NAME" -- sh -lc '
+cd "$1" || exit 1; shift
+[ -n "$1" ] && export TZ="$1"; shift
+if [ -n "$1" ]; then
+  mkdir -p "$HOME/.claude" && printf %s "$1" | base64 -d | tar -xzf - -C "$HOME/.claude"
+fi
+shift
+export IS_SANDBOX=1
+exec claude "$@"' _ "$GUEST_WORKDIR" "$TZ_NAME" "$CONFIG_B64" "$@"
 }
 
 main() {
@@ -290,6 +371,7 @@ main() {
       # The microVM is already the sandbox: only the project dir is visible and
       # everything else in the guest is throwaway. So run claude unattended by
       # default; IS_SANDBOX=1 in the guest is what lets the flag work as root.
+      CONFIG_B64="$(build_config_payload)"
       if [ "$SKIP_PERMISSIONS" != "0" ]; then
         passthru=(--dangerously-skip-permissions ${passthru[@]+"${passthru[@]}"})
       fi
