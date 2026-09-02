@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# claude-vm — run Claude Code inside a microsandbox microVM, anywhere.
+# vm-claude — run Claude Code inside a microsandbox microVM, anywhere.
 #
 # Isolates Claude Code from the host: only the current project dir is mounted
 # (rw) into the guest at /workspace. Auth/config/session state persist in the
@@ -9,11 +9,11 @@
 # Docs: https://docs.microsandbox.dev/examples/agents/claude-code
 #
 # Usage:
-#   claude-vm                 # run claude in a VM for $PWD
-#   claude-vm --shell         # drop into a shell in the VM instead
-#   claude-vm --stop          # stop this project's VM
-#   claude-vm --rm            # stop + delete VM (wipes its auth/session state)
-#   claude-vm -- <args...>    # pass args straight to `claude`
+#   vm-claude                 # run claude in a VM for $PWD
+#   vm-claude --shell         # drop into a shell in the VM instead
+#   vm-claude --stop          # stop this project's VM
+#   vm-claude --rm            # stop + delete VM (wipes its auth/session state)
+#   vm-claude -- <args...>    # pass args straight to `claude`
 #
 # Env overrides:
 #   CLAUDE_VM_VERSION   npm version of @anthropic-ai/claude-code (default pinned)
@@ -51,7 +51,7 @@ GUEST_WORKDIR="/workspace${SUBPATH}"
 # --- stable per-project VM name --------------------------------------------
 # Hash the absolute path so each project gets its own persistent VM.
 hash="$(printf '%s' "$MOUNT_DIR" | cksum | cut -d' ' -f1)"
-NAME="claude-vm-$(basename "$MOUNT_DIR")-${hash}"
+NAME="vm-claude-$(basename "$MOUNT_DIR")-${hash}"
 
 # --- ensure msb CLI is present ---------------------------------------------
 ensure_msb() {
@@ -83,11 +83,39 @@ vm_exists() {
   msb list 2>/dev/null | grep -q "\b${NAME}\b"
 }
 
+# Emit `git config --global` commands for the SAFE subset of the host config.
+# Explicitly excludes anything that could carry secrets: credential.*, *.token,
+# user.signingkey, gpg.*, http.*, url.*.insteadOf, sendemail.*, etc.
+host_git_config() {
+  command -v git >/dev/null 2>&1 || return 0
+
+  # exact keys to copy verbatim if present on the host
+  local keys="user.name user.email init.defaultBranch pull.rebase \
+    push.default push.autoSetupRemote rebase.autostash fetch.prune \
+    merge.conflictstyle diff.colorMoved color.ui"
+
+  local k v esc
+  for k in $keys; do
+    v="$(git config --global --get "$k" 2>/dev/null)" || continue
+    [ -n "$v" ] || continue
+    esc="$(printf "%s" "$v" | sed "s/'/'\\\\''/g")"
+    printf "git config --global '%s' '%s' && " "$k" "$esc"
+  done
+
+  # all aliases (alias.<name> = <value>); values may contain spaces
+  git config --global --get-regexp '^alias\.' 2>/dev/null | while IFS= read -r line; do
+    k="${line%% *}"; v="${line#* }"
+    esc="$(printf "%s" "$v" | sed "s/'/'\\\\''/g")"
+    printf "git config --global '%s' '%s' && " "$k" "$esc"
+  done
+}
+
 boot_cmd() {
   cat <<EOF
 apt-get update &&
 apt-get install -y --no-install-recommends ca-certificates git &&
 git config --global --add safe.directory /workspace &&
+$(host_git_config)
 npm install -g @anthropic-ai/claude-code@${VERSION} &&
 exec claude "\$@"
 EOF
