@@ -15,6 +15,10 @@
 #   vm-claude --rm            # stop + delete VM (wipes its auth/session state)
 #   vm-claude -- <args...>    # pass args straight to `claude`
 #
+# claude runs with --dangerously-skip-permissions by default: the microVM is
+# already the sandbox, so a second permission prompt inside it buys little.
+# Set CLAUDE_VM_SKIP_PERMISSIONS=0 to get the normal prompts back.
+#
 # Env overrides:
 #   CLAUDE_VM_VERSION   npm version of @anthropic-ai/claude-code (default pinned)
 #   CLAUDE_VM_IMAGE     base OCI image           (default node:24-bookworm-slim)
@@ -22,6 +26,7 @@
 #   CLAUDE_VM_MEMORY    RAM                       (default 4G)
 #   CLAUDE_VM_DISK      root disk                 (default 4G)
 #   CLAUDE_VM_MOUNT     host dir to mount as /workspace (default: $PWD)
+#   CLAUDE_VM_SKIP_PERMISSIONS  1 (default) passes --dangerously-skip-permissions
 
 set -euo pipefail
 
@@ -33,6 +38,7 @@ CPUS="${CLAUDE_VM_CPUS:-2}"
 MEMORY="${CLAUDE_VM_MEMORY:-4G}"
 DISK="${CLAUDE_VM_DISK:-4G}"
 MOUNT_DIR="${CLAUDE_VM_MOUNT:-$PWD}"
+SKIP_PERMISSIONS="${CLAUDE_VM_SKIP_PERMISSIONS:-1}"
 
 # --- resolve mount to an absolute path -------------------------------------
 MOUNT_DIR="$(cd "$MOUNT_DIR" && pwd)"
@@ -117,6 +123,7 @@ apt-get install -y --no-install-recommends ca-certificates git &&
 git config --global --add safe.directory /workspace &&
 $(host_git_config)
 npm install -g @anthropic-ai/claude-code@${VERSION} &&
+export IS_SANDBOX=1 &&
 exec claude "\$@"
 EOF
 }
@@ -132,7 +139,7 @@ start_fresh() {
 
 resume() {
   echo "Resuming microVM '${NAME}'..." >&2
-  msb exec -t "$NAME" -- sh -lc 'cd "$1" && shift && exec claude "$@"' _ "$GUEST_WORKDIR" "$@"
+  msb exec -t "$NAME" -- sh -lc 'cd "$1" && shift && export IS_SANDBOX=1 && exec claude "$@"' _ "$GUEST_WORKDIR" "$@"
 }
 
 main() {
@@ -160,15 +167,21 @@ main() {
       echo "Removed ${NAME} (state wiped)." ;;
     shell)
       if vm_exists; then
-        msb exec -t "$NAME" -- sh -l
+        msb exec -t "$NAME" -- sh -lc 'export IS_SANDBOX=1; exec sh -l'
       else
         msb run -t --name "$NAME" --replace \
           --cpus "$CPUS" --memory "$MEMORY" --root-disk "$DISK" \
           --mount-dir "${MOUNT_DIR}:/workspace:rw" \
           --workdir "$GUEST_WORKDIR" \
-          "$IMAGE" -- sh -l
+          "$IMAGE" -- sh -lc 'export IS_SANDBOX=1; exec sh -l'
       fi ;;
     run)
+      # The microVM is already the sandbox: only the project dir is visible and
+      # everything else in the guest is throwaway. So run claude unattended by
+      # default; IS_SANDBOX=1 in the guest is what lets the flag work as root.
+      if [ "$SKIP_PERMISSIONS" != "0" ]; then
+        passthru=(--dangerously-skip-permissions ${passthru[@]+"${passthru[@]}"})
+      fi
       if vm_exists; then
         resume ${passthru[@]+"${passthru[@]}"}
       else
