@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+#
+# pre-commit — keep the executable bit on tracked scripts.
+#
+# Editing a repo file from inside a VM that mounts this repo (e.g. developing
+# claude/vm-claude with vm-claude itself) rewrites the file through the mount
+# and drops its exec bit: 100755 -> 100644. With core.fileMode=true git stages
+# that mode change, and the next `vm-claude` run dies with "permission denied".
+#
+# This hook catches any staged file whose mode was downgraded from 100755 to
+# 100644, restores the exec bit in the working tree, and re-stages it — so a
+# broken mode never lands in a commit.
+set -euo pipefail
+
+restored=0
+
+# `git diff --cached --raw` lines look like:
+#   :100755 100644 <oldsha> <newsha> M<TAB>path
+# Field 1 = old mode, field 2 = new mode, path after the tab.
+while IFS=$'\t' read -r meta path; do
+  old_mode="${meta#:}"; old_mode="${old_mode%% *}"
+  new_mode="$(printf '%s' "$meta" | awk '{print $2}')"
+
+  if [ "$old_mode" = "100755" ] && [ "$new_mode" = "100644" ]; then
+    chmod +x "./$path"
+    git add -- "$path"
+    echo "pre-commit: restored exec bit on $path" >&2
+    restored=1
+  fi
+done < <(git diff --cached --raw)
+
+[ "$restored" = "1" ] && echo "pre-commit: exec bits fixed and re-staged." >&2
+exit 0
