@@ -168,7 +168,10 @@ sign_new_commits() {
   local before="$1" after branch n
   after="$(host_head)"
 
-  [ -n "$before" ] && [ -n "$after" ] || return 0
+  if [ -z "$before" ] || [ -z "$after" ]; then
+    echo "sign-on-exit: could not read HEAD in ${MOUNT_DIR}, skipping." >&2
+    return 0
+  fi
   if [ "$before" = "$after" ]; then
     echo "sign-on-exit: no new commits." >&2
     return 0
@@ -198,6 +201,25 @@ sign_new_commits() {
     echo "sign-on-exit: rebase failed, nothing rewritten." >&2
     echo "  retry manually: git -C '${MOUNT_DIR}' rebase -f -S ${before}" >&2
   fi
+}
+
+# Arm the exit hook: note HEAD now, sign whatever the VM adds on the way out.
+# Announced out loud, because a silent arm is indistinguishable from a flag
+# that was never passed -- which is exactly how this looks when it misfires.
+arm_sign_on_exit() {
+  [ "$SIGN_ON_EXIT" = "1" ] || return 0
+
+  HEAD_BEFORE="$(host_head)"
+  if [ -z "$HEAD_BEFORE" ]; then
+    echo "sign-on-exit: no HEAD in ${MOUNT_DIR} to compare against, not arming." >&2
+    return 0
+  fi
+  if [ -z "$(git -C "$MOUNT_DIR" config --get user.signingkey 2>/dev/null)" ]; then
+    echo "warning: --sign-on-exit given but user.signingkey is unset on the host." >&2
+  fi
+
+  echo "sign-on-exit: armed at $(git -C "$MOUNT_DIR" rev-parse --short HEAD)." >&2
+  trap 'sign_new_commits "$HEAD_BEFORE"' EXIT
 }
 
 boot_cmd() {
@@ -254,6 +276,7 @@ main() {
       msb remove "$NAME" 2>/dev/null || msb rm "$NAME"
       echo "Removed ${NAME} (state wiped)." ;;
     shell)
+      arm_sign_on_exit
       if vm_exists; then
         msb exec -t "$NAME" -- sh -lc 'export IS_SANDBOX=1; exec sh -l'
       else
@@ -270,14 +293,7 @@ main() {
       if [ "$SKIP_PERMISSIONS" != "0" ]; then
         passthru=(--dangerously-skip-permissions ${passthru[@]+"${passthru[@]}"})
       fi
-      # Note HEAD now; the trap signs whatever the VM added, on any exit path.
-      if [ "$SIGN_ON_EXIT" = "1" ]; then
-        if [ -z "$(git -C "$MOUNT_DIR" config --get user.signingkey 2>/dev/null)" ]; then
-          echo "warning: --sign-on-exit given but user.signingkey is unset on the host." >&2
-        fi
-        HEAD_BEFORE="$(host_head)"
-        trap 'sign_new_commits "$HEAD_BEFORE"' EXIT
-      fi
+      arm_sign_on_exit
       if vm_exists; then
         resume ${passthru[@]+"${passthru[@]}"}
       else

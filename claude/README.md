@@ -78,7 +78,7 @@ No signing key and no git credentials are ever copied into the guest, so commits
 vm-claude --sign-on-exit
 ```
 
-It records `HEAD` before starting the VM and, when the VM exits, signs whatever was committed in the meantime with your host key. This works because `/workspace` **is** your host repo — the git root is what's mounted, so commits made in the guest are already real objects in the host's `.git`; only the signature is missing. The hook re-creates them out here, where the key lives:
+It records `HEAD` before starting the VM and, when the VM exits, signs whatever was committed in the meantime with your host key. When it arms it says so — `sign-on-exit: armed at <sha>` — so an active hook is distinguishable from a flag you forgot to pass. `--shell` sessions are covered too. This works because `/workspace` **is** your host repo — the git root is what's mounted, so commits made in the guest are already real objects in the host's `.git`; only the signature is missing. The hook re-creates them out here, where the key lives:
 
 ```bash
 git rebase --force-rebase --gpg-sign --autostash <HEAD before the VM ran>
@@ -89,6 +89,8 @@ git rebase --force-rebase --gpg-sign --autostash <HEAD before the VM ran>
 Set `CLAUDE_VM_SIGN_ON_EXIT=1` to make it the default (`--no-sign-on-exit` turns it off for one run). The hook deliberately does nothing and tells you so when it can't act safely: a detached `HEAD`, no new commits, or a history that diverged from where it started (a rebase or reset inside the VM), since rewriting from the old base would discard work. If the rebase itself fails it runs `git rebase --abort` and prints the command to retry by hand — it never leaves you mid-rebase.
 
 Signing rewrites the commits, so their hashes change. Run it before pushing, not after.
+
+Two things it deliberately cannot do. It only signs commits made **during that run** — anything already unsigned when the VM started sits below the recorded base and stays untouched, so catch those up by hand with `git rebase -f -S <last good commit>`. And the hook lives in the running `vm-claude` process: editing the script, or deciding to enable the flag, does nothing for a session that is already up. A VM started without it will exit without it.
 
 ### Timezone
 
