@@ -6,6 +6,9 @@ A small collection of tools and helpers meant to be used **with [Claude Code](ht
 | --- | --- |
 | [`vm-claude`](#vm-claude) | Run Claude Code inside an isolated microVM, one per project |
 
+This folder also carries a version-controlled snapshot of the portable, PII-free
+parts of the host `~/.claude` config — see [Vendored config](#vendored-claude-config).
+
 ---
 
 ## vm-claude
@@ -176,3 +179,44 @@ Setting `CLAUDE_VM_MOUNT` explicitly also disables the git-root detection: the d
 - **Only `/workspace` persists on the host.** Anything Claude writes elsewhere in the guest lives in the VM disk and disappears with `--rm`.
 - **Changing `CLAUDE_VM_VERSION` doesn't upgrade an existing VM** — the install only runs on first boot. Use `vm-claude --rm` and start fresh, or upgrade from inside `vm-claude --shell`.
 - Upstream docs: <https://docs.microsandbox.dev/examples/agents/claude-code>
+
+---
+
+## Vendored `~/.claude` config
+
+`settings.json`, `hooks/`, and `skills/` here are a version-controlled snapshot
+of the portable, non-PII parts of the host `~/.claude`. The layout mirrors
+`~/.claude` so this directory can drive `vm-claude` directly:
+
+```bash
+CLAUDE_VM_CONFIG_DIR=~/dotfiles/claude vm-claude
+```
+
+### What's in
+
+| Path | What it is |
+| --- | --- |
+| `settings.json` | Global Claude config: model, effort, hook wiring, statusline, enabled plugins, permissions |
+| `hooks/caveman-session.sh` | Injects the caveman session directive; writes the on/off marker |
+| `hooks/statusline-caveman.sh` | Status line: caveman flag + model + cwd |
+| `skills/` | 23 personal skills (`collab`, `consult`, `workshop`, `pre-pr`, …) |
+
+Absolute host paths in `settings.json` are written as `$HOME/.claude/…`. Claude
+Code runs hook and status-line commands through a shell (shell form — no `args`),
+so `$HOME` expands at run time. Keep new hooks in shell form for this to hold.
+
+### What's excluded, and why
+
+- **Credentials and history** — `.credentials.json`, `history.jsonl`,
+  `projects/`, `sessions/`, `shell-snapshots/`, telemetry: PII / secrets.
+- **`hooks/peon-ping/`** — the peon-ping hook is installed
+  via Homebrew (`/opt/homebrew`, `~/.openpeon`) and is a tree of symlinks + local
+  state, not hand-authored config. `settings.json` still *references*
+  `$HOME/.claude/hooks/peon-ping/peon.sh`, so install peon-ping separately for
+  those hooks to fire; if it's absent the hooks just no-op.
+- **Marketplace / plugin skills** — the skill entries in `~/.claude/skills` that
+  are symlinks into `~/.agents` (`caveman`, `tdd`, `diagnose`, `write-a-skill`, …)
+  come from a plugin marketplace and are managed there, so they're not vendored.
+  Note `settings.json`'s caveman hook invokes the `caveman` skill, which is one of
+  these — install that marketplace for caveman mode to work end to end.
+
