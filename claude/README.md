@@ -156,10 +156,10 @@ The base image runs UTC, which would stamp every commit made in the VM with a `+
 1. The mount directory (default `$PWD`) is resolved to an absolute path. If it's inside a git repo, the **repo root** is mounted instead, so `.git` is visible in the guest, and the sub-path is remembered so you land in the equivalent directory under `/workspace`.
 2. That path is hashed, producing a stable VM name like `vm-claude-my-project-1234567890`. Each project therefore gets its own persistent VM.
 3. **First run** — `msb run` boots the base image with the project mounted at `/workspace`, then inside the guest installs `ca-certificates`, `git`, and `tzdata`, pins the timezone, copies over a safe subset of your host git config (see below), runs `npm install -g @anthropic-ai/claude-code@<version>`, unpacks a safe subset of your `~/.claude` config (see below), and execs `claude`.
-4. **Later runs** — the VM already exists, so it's resumed with `msb exec` and `claude` starts immediately. No reinstall, and you stay logged in; the `~/.claude` subset is refreshed from the host on the way in.
+4. **Later runs** — the VM already exists, so it's resumed with `msb exec` and `claude` starts right up. `claude` is re-installed at `CLAUDE_VM_VERSION` on the way in so each session picks up the latest release (skipped gracefully if the install fails — the version already in the VM is used); you stay logged in, and the `~/.claude` subset is refreshed from the host too.
 5. `--stop` shuts the VM down but keeps its disk. `--rm` deletes it, which also destroys the stored credentials and session history for that project.
 
-Because the install happens on first boot, expect the first run in a project to take a minute or two; subsequent runs are fast.
+The first run in a project boots the base image and installs the OS packages, so expect a minute or two; later runs skip all that and only refresh `claude` itself, so they start in a few seconds.
 
 ### Git config
 
@@ -200,7 +200,7 @@ All configuration is via environment variables:
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `CLAUDE_VM_VERSION` | `2.1.235` | npm version of `@anthropic-ai/claude-code` to install |
+| `CLAUDE_VM_VERSION` | `latest` | npm version of `@anthropic-ai/claude-code`, (re)installed on every start and resume; pin to a version (e.g. `2.1.235`) to hold it |
 | `CLAUDE_VM_IMAGE` | `public.ecr.aws/docker/library/node:24-bookworm-slim` | Base OCI image |
 | `CLAUDE_VM_CPUS` | `2` | vCPUs |
 | `CLAUDE_VM_MEMORY` | `4G` | RAM |
@@ -230,7 +230,7 @@ Setting `CLAUDE_VM_MOUNT` explicitly also disables the git-root detection: the d
 - **Sign-in is per project.** Because state lives in the per-project VM disk, the first run in each new project asks you to authenticate again. Credentials are never copied from the host — only the config allowlist is. `--rm` resets that.
 - **The VM has network access**, which is what makes `npm install` and the Claude API work. Isolation here is about the filesystem, not the network.
 - **Only `/workspace` persists on the host.** Anything Claude writes elsewhere in the guest lives in the VM disk and disappears with `--rm`.
-- **Changing `CLAUDE_VM_VERSION` doesn't upgrade an existing VM** — the install only runs on first boot. Use `vm-claude --rm` and start fresh, or upgrade from inside `vm-claude --shell`.
+- **`claude` is (re)installed on every start and resume**, so each session picks up the newest release (`CLAUDE_VM_VERSION` defaults to `latest`). On a resume the update is best-effort — if the install fails (e.g. no network), the version already in the VM is used and the session still starts. Pin `CLAUDE_VM_VERSION` to a specific version to hold `claude` steady across sessions.
 - Upstream docs: <https://docs.microsandbox.dev/examples/agents/claude-code>
 
 ---

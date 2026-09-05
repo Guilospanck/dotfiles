@@ -22,7 +22,8 @@
 # Set CLAUDE_VM_SKIP_PERMISSIONS=0 to get the normal prompts back.
 #
 # Env overrides:
-#   CLAUDE_VM_VERSION   npm version of @anthropic-ai/claude-code (default pinned)
+#   CLAUDE_VM_VERSION   npm version of @anthropic-ai/claude-code, installed on
+#                       every start/resume (default "latest"; pin to e.g. 2.1.235)
 #   CLAUDE_VM_IMAGE     base OCI image           (default node:24-bookworm-slim)
 #   CLAUDE_VM_CPUS      vCPUs                     (default 2)
 #   CLAUDE_VM_MEMORY    RAM                       (default 4G)
@@ -46,7 +47,7 @@
 
 set -euo pipefail
 
-VERSION="${CLAUDE_VM_VERSION:-2.1.235}"
+VERSION="${CLAUDE_VM_VERSION:-latest}"
 # Default to the AWS ECR public mirror of Docker's official images: anonymous
 # pull, no Docker Hub rate limit / 401. Override with a Hub tag if you prefer.
 IMAGE="${CLAUDE_VM_IMAGE:-public.ecr.aws/docker/library/node:24-bookworm-slim}"
@@ -652,6 +653,9 @@ if [ -n "\$1" ]; then
   true
 fi
 shift
+echo "Updating claude (@${VERSION})..." >&2
+npm install -g @anthropic-ai/claude-code@${VERSION} --no-fund --no-audit --loglevel=error \
+  || echo "vm-claude: claude update failed; using the version already installed." >&2
 $(clip_guest_setup_cmd)
 $(clip_ready_check_cmd)
 export IS_SANDBOX=1
