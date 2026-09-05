@@ -14,6 +14,7 @@
 #   vm-claude --stop          # stop this project's VM
 #   vm-claude --rm            # stop + delete VM (wipes its auth/session state)
 #   vm-claude --sign-on-exit  # sign the VM's commits on the host when it exits
+#   vm-claude --no-clip       # disable the clipboard bridge (on by default)
 #   vm-claude -- <args...>    # pass args straight to `claude`
 #
 # claude runs with --dangerously-skip-permissions by default: the microVM is
@@ -38,6 +39,10 @@
 #   CLAUDE_VM_CONFIG_MAX_KB size ceiling for that payload  (default 120)
 #   CLAUDE_VM_SETTINGS_STRIP  settings.json keys to drop in the guest
 #                       (default "hooks statusLine"; "" keeps everything)
+#   CLAUDE_VM_CLIP      1 (default) bridges the macOS clipboard into the guest so
+#                       Claude's Ctrl-V image paste works, approving each paste
+#                       via a host dialog; 0 (or --no-clip) turns it off. macOS
+#                       host only; pngpaste is auto-installed via Homebrew.
 
 set -euo pipefail
 
@@ -82,6 +87,149 @@ CONFIG_B64=""
 # add keys (e.g. "env") to drop more. Use `-` so an explicit "" means "keep all".
 CONFIG_STRIP="${CLAUDE_VM_SETTINGS_STRIP-hooks statusLine}"
 
+# --- clipboard bridge (opt-in) ---------------------------------------------
+# Claude Code reads a pasted image by shelling out to `xclip`/`wl-paste` in the
+# guest, which has no clipboard -- so image paste (Ctrl-V) is dead by default.
+# With --clip (or CLAUDE_VM_CLIP=1) we bridge it: a host watcher serves the
+# macOS pasteboard through a shared dir, and a shim named `xclip` in the guest
+# fetches it. Every fetch pops a host approval dialog, so a rogue guest can make
+# the prompt appear but can't read anything without a human click. The request
+# from the guest is what identifies which VM is asking, so this works no matter
+# how windows/panes are split -- something a host-side hotkey can't do.
+#
+# On by default; --no-clip (or CLAUDE_VM_CLIP=0) turns it off. macOS host only,
+# and images need `pngpaste`, which is auto-installed via Homebrew when missing
+# (like msb) -- if that can't happen, image paste degrades off and text still
+# works. The shared dir is an extra mount and mounts are fixed at boot, so
+# enabling it on a VM that was first booted without it needs `--rm` and a fresh
+# start; a resume that finds the bridge missing says so and carries on.
+CLIP_ENABLE="${CLAUDE_VM_CLIP:-1}"
+CLIP_EXPLICIT=0
+[ -n "${CLAUDE_VM_CLIP:-}" ] && CLIP_EXPLICIT=1
+WATCHER_PID=""
+
+# Guest shim: impersonates just enough of xclip(1) for Claude's paste probe.
+# The presence probe (TARGETS) is answered silently; each *content* fetch
+# round-trips to the host watcher, which asks the user. Written verbatim into
+# the guest at /usr/local/bin/xclip (nothing real is there to shadow).
+#
+# Read via `read -r -d ''` rather than "$(cat <<'EOS')": a heredoc inside command
+# substitution is mishandled by the bash 3.2 that ships with macOS. `read` hits
+# EOF and returns non-zero, hence the `|| true` under `set -e`.
+IFS= read -r -d '' CLIP_SHIM_SRC <<'EOS' || true
+#!/bin/sh
+# vm-claude clipboard shim (guest side). Serves the host pasteboard, gated by a
+# per-paste approval dialog the host watcher shows. See vm-claude for the design.
+CLIP="${VM_CLIP_DIR:-/run/vm-clip}"
+
+# No bridge mounted / no watcher running -> behave like an empty clipboard,
+# instantly, rather than hang on a round-trip that will never be answered.
+[ -e "$CLIP/ready" ] || exit 1
+
+target=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -t) target="${2:-}"; shift 2 ;;
+    -selection) shift 2 ;;
+    *) shift ;;
+  esac
+done
+
+# Drop a content-free trigger and wait for the host to answer. The trigger's
+# existence is the whole message; the watcher never reads its contents.
+roundtrip() {                       # $1 = probe|image|text
+  rm -f "$CLIP/$1.done" 2>/dev/null
+  : > "$CLIP/$1.req"
+  n=0
+  while [ "$n" -lt 300 ]; do        # ~30s ceiling (dialog itself times out first)
+    [ -e "$CLIP/$1.done" ] && { rm -f "$CLIP/$1.done"; return 0; }
+    n=$((n + 1)); sleep 0.1
+  done
+  return 1
+}
+
+case "$target" in
+  TARGETS)                          # silent presence probe, no dialog
+    roundtrip probe || exit 1
+    [ -e "$CLIP/has.png" ] && printf 'image/png\n'
+    [ -e "$CLIP/has.txt" ] && printf 'text/plain\n'
+    ;;
+  image/png)
+    roundtrip image || exit 1
+    [ -s "$CLIP/out.png" ] && exec cat "$CLIP/out.png"
+    exit 1 ;;
+  text/plain)
+    roundtrip text || exit 1
+    [ -s "$CLIP/out.txt" ] && exec cat "$CLIP/out.txt"
+    exit 1 ;;
+  *)
+    exit 1 ;;
+esac
+EOS
+
+# Host watcher (macOS). Bridges the pasteboard to the guest shim, prompting the
+# user before every content fetch. Security-critical invariants, all in one spot:
+#   - the guest can only create *.req TRIGGERS; their contents are never read.
+#   - everything handed back is staged in a host-only dir ($WORK) and renamed
+#     onto the same filesystem into the shared mount ($SHARED); a symlink the
+#     guest plants in $SHARED can't redirect our writes (rename replaces it).
+#   - the dialog string is composed here -- no guest bytes ever reach osascript.
+# Read via `read -r -d ''` for the same bash-3.2 reason as the shim above.
+IFS= read -r -d '' CLIP_WATCHER_SRC <<'EOW' || true
+#!/bin/sh
+set -eu
+SHARED="$1"; WORK="$2"; NAME="$3"
+mkdir -p "$SHARED" "$WORK"
+
+have_png=0
+if command -v pngpaste >/dev/null 2>&1; then
+  have_png=1
+else
+  echo "vm-claude clipboard: pngpaste not found (brew install pngpaste); image paste off, text still works." >&2
+fi
+
+# symlink-safe writes: stage in $WORK, rename onto the same fs into $SHARED.
+mark()   { : > "$WORK/.m" && mv -f "$WORK/.m" "$SHARED/$1"; }
+unmark() { rm -f "$SHARED/$1"; }
+
+ask() {  # $1 = image|text ; returns 0 on Allow. Text is host-composed only.
+  osascript -e "display dialog \"${NAME} wants to read your clipboard (${1}). Allow this paste?\" buttons {\"Deny\", \"Allow\"} default button \"Deny\" cancel button \"Deny\" with title \"vm-claude clipboard\" with icon caution giving up after 20" 2>/dev/null | grep -q "button returned:Allow"
+}
+
+cleanup() { rm -f "$SHARED/ready" 2>/dev/null || true; }
+trap 'cleanup; exit 0' TERM INT
+trap cleanup EXIT
+
+mark ready
+while [ -d "$SHARED" ]; do
+  # Self-terminate if the vm-claude that launched us is gone -- an orphan
+  # reparents to PID 1. Covers hard kills where our EXIT trap never fired, so a
+  # watcher can't outlive its session even when nothing gets to reap it.
+  [ "$(ps -o ppid= -p "$$" 2>/dev/null | tr -d ' ')" = 1 ] && { cleanup; exit 0; }
+  if [ -e "$SHARED/probe.req" ]; then
+    rm -f "$SHARED/probe.req"; unmark has.png; unmark has.txt
+    if [ "$have_png" = 1 ] && pngpaste "$WORK/c.png" >/dev/null 2>&1 && [ -s "$WORK/c.png" ]; then mark has.png; fi
+    if pbpaste 2>/dev/null | grep -q .; then mark has.txt; fi
+    mark probe.done
+  fi
+  if [ -e "$SHARED/image.req" ]; then
+    rm -f "$SHARED/image.req"; unmark out.png
+    if [ "$have_png" = 1 ] && ask image && pngpaste "$WORK/c.png" >/dev/null 2>&1 && [ -s "$WORK/c.png" ]; then
+      rm -f "$SHARED/out.png"; mv -f "$WORK/c.png" "$SHARED/out.png"
+    fi
+    mark image.done
+  fi
+  if [ -e "$SHARED/text.req" ]; then
+    rm -f "$SHARED/text.req"; unmark out.txt
+    if ask text && pbpaste > "$WORK/c.txt" 2>/dev/null; then
+      rm -f "$SHARED/out.txt"; mv -f "$WORK/c.txt" "$SHARED/out.txt"
+    fi
+    mark text.done
+  fi
+  sleep 0.15
+done
+EOW
+
 # --- resolve mount to an absolute path -------------------------------------
 MOUNT_DIR="$(cd "$MOUNT_DIR" && pwd)"
 
@@ -100,6 +248,13 @@ GUEST_WORKDIR="/workspace${SUBPATH}"
 # Hash the absolute path so each project gets its own persistent VM.
 hash="$(printf '%s' "$MOUNT_DIR" | cksum | cut -d' ' -f1)"
 NAME="vm-claude-$(basename "$MOUNT_DIR")-${hash}"
+
+# Per-VM host dirs for the clipboard bridge: `shared` is mounted into the guest,
+# `work` is host-only staging on the SAME filesystem, so renames of served files
+# into `shared` are atomic and can't be redirected by a guest-planted symlink.
+CLIP_ROOT="${XDG_CACHE_HOME:-$HOME/.cache}/vm-claude/clip/${NAME}"
+CLIP_SHARED="${CLIP_ROOT}/shared"
+CLIP_WORK="${CLIP_ROOT}/work"
 
 # --- host timezone ---------------------------------------------------------
 # The guest is UTC otherwise, which shows up as a +0000 offset on every commit
@@ -157,6 +312,22 @@ ensure_msb() {
     echo "msb still not on PATH. Add its install dir to PATH and re-run." >&2
     exit 1
   }
+}
+
+# --- ensure pngpaste is present (for image paste) ---------------------------
+# Like ensure_msb, but non-fatal: pngpaste only powers image paste, so if it
+# can't be installed we warn and let the session run (text paste still works).
+# macOS + Homebrew only -- pngpaste has no portable installer.
+ensure_pngpaste() {
+  command -v pngpaste >/dev/null 2>&1 && return 0
+  if command -v brew >/dev/null 2>&1; then
+    echo "clipboard: pngpaste not found -> installing via Homebrew..." >&2
+    brew install pngpaste >/dev/null 2>&1 \
+      || echo "clipboard: 'brew install pngpaste' failed; image paste disabled (text paste still works)." >&2
+  else
+    echo "clipboard: pngpaste not found and Homebrew is not installed; image paste disabled (text paste still works)." >&2
+    echo "  install Homebrew (https://brew.sh) then 'brew install pngpaste' to enable image paste." >&2
+  fi
 }
 
 # --- does the VM already exist? --------------------------------------------
@@ -321,6 +492,25 @@ sign_new_commits() {
   fi
 }
 
+# A single exit path shared by --sign-on-exit and the clipboard watcher: the
+# EXIT trap does the work; the signal traps just turn a signal into an exit so it
+# runs exactly once whichever way we go down (clean /q, Ctrl-C, closed terminal).
+TRAPS_SET=0
+on_exit() {
+  if [ "$SIGN_ON_EXIT" = "1" ] && [ -n "$HEAD_BEFORE" ]; then
+    sign_new_commits "$HEAD_BEFORE"
+  fi
+  [ -n "$WATCHER_PID" ] && kill "$WATCHER_PID" 2>/dev/null || true
+}
+ensure_traps() {
+  [ "$TRAPS_SET" = "1" ] && return 0
+  TRAPS_SET=1
+  trap on_exit EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+  trap 'exit 129' HUP
+}
+
 # Arm the exit hook: note HEAD now, sign whatever the VM adds on the way out.
 # Announced out loud, because a silent arm is indistinguishable from a flag
 # that was never passed -- which is exactly how this looks when it misfires.
@@ -340,10 +530,77 @@ arm_sign_on_exit() {
   # Sign on a clean /q, and also when the session is interrupted or its terminal
   # is closed -- Ctrl-C, SIGTERM, SIGHUP. The signal traps only exit; the EXIT
   # trap does the signing, so it runs exactly once whichever way we go down.
-  trap 'sign_new_commits "$HEAD_BEFORE"' EXIT
-  trap 'exit 130' INT
-  trap 'exit 143' TERM
-  trap 'exit 129' HUP
+  ensure_traps
+}
+
+# --- clipboard bridge wiring -----------------------------------------------
+# Shell fragment (ends in `&&`) that installs the guest shim and turns on
+# Claude's Linux clipboard path -- it only probes the clipboard when DISPLAY or
+# WAYLAND_DISPLAY is set, so we set DISPLAY. Empty unless --clip is on.
+clip_guest_setup_cmd() {
+  [ "$CLIP_ENABLE" = "1" ] || return 0
+  local b64
+  b64="$(printf '%s' "$CLIP_SHIM_SRC" | base64 | tr -d '\n')"
+  printf '%s\n' \
+    "printf %s '${b64}' | base64 -d > /usr/local/bin/xclip && chmod 0755 /usr/local/bin/xclip &&" \
+    "export DISPLAY=:0 && export VM_CLIP_DIR=/run/vm-clip &&"
+}
+
+# Non-fatal guest check (ends in `;`) that warns if the bridge isn't actually
+# wired up -- e.g. --clip on a VM first booted without it, so the mount is
+# absent. The shim already fails fast in that case; this just explains why.
+clip_ready_check_cmd() {
+  [ "$CLIP_ENABLE" = "1" ] || return 0
+  printf '%s\n' \
+    '{ [ -e /run/vm-clip/ready ] || { sleep 0.5; [ -e /run/vm-clip/ready ]; } || echo "vm-claude: clipboard bridge not active for this VM; recreate with --rm to enable." >&2; } ;'
+}
+
+# Launch the host-side watcher and arm its teardown. macOS only (guarded by the
+# caller). Creates the shared dir the boot-time mount points at, so it must run
+# before start_fresh.
+start_watcher() {
+  [ "$CLIP_ENABLE" = "1" ] || return 0
+  ensure_pngpaste
+  mkdir -p "$CLIP_SHARED" "$CLIP_WORK"
+  local w="${CLIP_ROOT}/watcher.sh"
+  printf '%s\n' "$CLIP_WATCHER_SRC" > "$w"
+  sh "$w" "$CLIP_SHARED" "$CLIP_WORK" "$NAME" &
+  WATCHER_PID=$!
+  printf '%s\n' "$WATCHER_PID" > "${CLIP_ROOT}/watcher.pid" 2>/dev/null || true
+  ensure_traps
+  echo "clipboard: bridge armed -- you'll approve each paste in a host dialog." >&2
+}
+
+# True if $1 is a live process whose command line is this VM's watcher. Reads
+# /proc where it exists (Linux) and falls back to ps (macOS) -- so the identity
+# check works on both without assuming either is present.
+pid_is_our_watcher() {
+  local pid="$1" cmd=""
+  [ -n "$pid" ] || return 1
+  if [ -r "/proc/$pid/cmdline" ]; then
+    cmd="$(tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null || true)"
+  else
+    cmd="$(ps -p "$pid" -o command= 2>/dev/null || true)"
+  fi
+  printf '%s' "$cmd" | grep -qF "${CLIP_ROOT}/watcher.sh"
+}
+
+# Kill any clipboard watcher still running for THIS VM (e.g. one a hard kill
+# orphaned, whose EXIT trap never fired). Uses the pid recorded at launch, and
+# only kills it after confirming that pid is still *our* watcher -- so a stale
+# pidfile whose pid was recycled by an unrelated process is left untouched.
+stop_stray_watcher() {
+  local pidfile="${CLIP_ROOT}/watcher.pid" pid
+  [ -f "$pidfile" ] || return 0
+  pid="$(cat "$pidfile" 2>/dev/null || true)"
+  pid_is_our_watcher "$pid" && kill "$pid" 2>/dev/null || true
+  rm -f "$pidfile" 2>/dev/null || true
+}
+
+# Wipe this VM's host-side clipboard state: stray watcher + the whole cache dir.
+clip_wipe() {
+  stop_stray_watcher
+  rm -rf "$CLIP_ROOT" 2>/dev/null || true
 }
 
 # $1 is the (possibly empty) config payload; the rest is claude's own argv.
@@ -358,6 +615,8 @@ $(host_git_config)
 npm install -g @anthropic-ai/claude-code@${VERSION} &&
 $(config_restore_cmd)
 $(config_sanitize_cmd)
+$(clip_guest_setup_cmd)
+$(clip_ready_check_cmd)
 export IS_SANDBOX=1 &&
 exec claude "\$@"
 EOF
@@ -365,9 +624,14 @@ EOF
 
 start_fresh() {
   echo "Booting new microVM '${NAME}' (image ${IMAGE}, ${CPUS} cpu / ${MEMORY} ram)..." >&2
+  local clip_mount=()
+  if [ "$CLIP_ENABLE" = "1" ]; then
+    clip_mount=(--mount-dir "${CLIP_SHARED}:/run/vm-clip:rw")
+  fi
   msb run -t --name "$NAME" --replace \
     --cpus "$CPUS" --memory "$MEMORY" --root-disk "$DISK" \
     --mount-dir "${MOUNT_DIR}:/workspace:rw" \
+    ${clip_mount[@]+"${clip_mount[@]}"} \
     --workdir "$GUEST_WORKDIR" \
     "$IMAGE" -- sh -lc "$(boot_cmd)" _ "$CONFIG_B64" "$@"
 }
@@ -388,6 +652,8 @@ if [ -n "\$1" ]; then
   true
 fi
 shift
+$(clip_guest_setup_cmd)
+$(clip_ready_check_cmd)
 export IS_SANDBOX=1
 exec claude "\$@"
 EOF
@@ -406,6 +672,8 @@ main() {
       --rm)    mode="rm";    shift ;;
       --sign-on-exit)    SIGN_ON_EXIT=1; shift ;;
       --no-sign-on-exit) SIGN_ON_EXIT=0; shift ;;
+      --clip)    CLIP_ENABLE=1; CLIP_EXPLICIT=1; shift ;;
+      --no-clip) CLIP_ENABLE=0; CLIP_EXPLICIT=1; shift ;;
       --)      shift; passthru+=("$@"); break ;;
       *)       passthru+=("$1"); shift ;;
     esac
@@ -413,23 +681,40 @@ main() {
 
   ensure_msb
 
+  # The clipboard watcher reads the macOS pasteboard (pngpaste/pbpaste/osascript);
+  # there's no portable equivalent to bridge here, so it's macOS-host only. It's
+  # on by default, so stay quiet when disabling on a non-macOS host unless the
+  # user asked for it explicitly.
+  if [ "$CLIP_ENABLE" = "1" ] && [ "$(uname -s)" != "Darwin" ]; then
+    [ "$CLIP_EXPLICIT" = "1" ] && echo "clipboard: --clip needs a macOS host; disabling for this run." >&2
+    CLIP_ENABLE=0
+  fi
+
   case "$mode" in
     stop)
+      stop_stray_watcher
       msb stop "$NAME" && echo "Stopped ${NAME}." ;;
     rm)
       msb stop "$NAME" 2>/dev/null || true
       msb remove "$NAME" 2>/dev/null || msb rm "$NAME"
+      clip_wipe
       echo "Removed ${NAME} (state wiped)." ;;
     shell)
       arm_sign_on_exit
+      start_watcher
+      local clip_mount=()
+      if [ "$CLIP_ENABLE" = "1" ]; then
+        clip_mount=(--mount-dir "${CLIP_SHARED}:/run/vm-clip:rw")
+      fi
       if vm_exists; then
-        msb exec -t "$NAME" -- sh -lc 'export IS_SANDBOX=1; exec sh -l'
+        msb exec -t "$NAME" -- sh -lc "$(clip_guest_setup_cmd)export IS_SANDBOX=1; exec sh -l"
       else
         msb run -t --name "$NAME" --replace \
           --cpus "$CPUS" --memory "$MEMORY" --root-disk "$DISK" \
           --mount-dir "${MOUNT_DIR}:/workspace:rw" \
+          ${clip_mount[@]+"${clip_mount[@]}"} \
           --workdir "$GUEST_WORKDIR" \
-          "$IMAGE" -- sh -lc 'export IS_SANDBOX=1; exec sh -l'
+          "$IMAGE" -- sh -lc "$(clip_guest_setup_cmd)export IS_SANDBOX=1; exec sh -l"
       fi ;;
     run)
       # The microVM is already the sandbox: only the project dir is visible and
@@ -440,6 +725,7 @@ main() {
         passthru=(--dangerously-skip-permissions ${passthru[@]+"${passthru[@]}"})
       fi
       arm_sign_on_exit
+      start_watcher
       if vm_exists; then
         resume ${passthru[@]+"${passthru[@]}"}
       else

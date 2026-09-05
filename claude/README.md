@@ -43,6 +43,7 @@ vm-claude --shell         # drop into a shell in the VM instead of running claud
 vm-claude --stop          # stop this project's VM
 vm-claude --rm            # stop + delete the VM (wipes its auth/session state)
 vm-claude --sign-on-exit  # sign the commits the VM made, on the host, on exit
+vm-claude --no-clip       # disable the clipboard bridge (on by default)
 vm-claude -- <args...>    # pass args straight through to `claude`
 ```
 
@@ -94,6 +95,57 @@ It's already the default when your host is set up to sign commits anyway — if 
 Signing rewrites the commits, so their hashes change. Run it before pushing, not after.
 
 Two things it deliberately cannot do. It only signs commits made **during that run** — anything already unsigned when the VM started sits below the recorded base and stays untouched, so catch those up by hand with `git rebase -f -S <last good commit>`. And the hook lives in the running `vm-claude` process: editing the script, or deciding to enable the flag, does nothing for a session that is already up. A VM started without it will exit without it.
+
+### Pasting images (clipboard bridge)
+
+Ctrl-V image paste doesn't work in a plain `vm-claude` session, and it can't:
+Claude Code reads a pasted image by shelling out to `xclip`/`wl-paste` **inside
+the guest**, but the guest has no clipboard and no line to your Mac's pasteboard.
+The image sits in the host clipboard while the program trying to read it is in a
+box that can't see it. (Text paste works because text rides through the terminal
+as an ordinary paste; images don't.)
+
+The clipboard bridge fixes it, and it's **on by default** — you paste with
+Ctrl-V as normal, and each time Claude reaches for the clipboard a **dialog
+appears on your Mac** asking you to approve that one paste. Click Allow and the
+image drops in. Nothing is read without your click. Turn it off with:
+
+```bash
+vm-claude --no-clip       # or CLAUDE_VM_CLIP=0 vm-claude
+```
+
+**How it works.** A shared directory is mounted into the guest, and a shim named
+`xclip` is installed there. When you paste, the shim drops a content-free trigger
+in the shared dir; a small watcher process on your Mac sees it, shows the
+Allow/Deny dialog, and — only on Allow — serves the current pasteboard back
+through the dir for Claude to read. The request originates *in the VM you're
+pasting into*, so it always targets the right session no matter how your windows
+or terminal panes are split (a host-side hotkey can't tell panes apart, which is
+why this is dialog-per-paste rather than a keybinding).
+
+**Why the dialog is the whole point.** Because the guest triggers the read, a
+compromised or prompt-injected guest could ask for your clipboard whenever it
+likes — not just when you meant to paste — and it has network access to send it
+onward. The per-paste approval is what stops a silent read: the guest can make
+the dialog *appear*, but can't get anything without a human click, and a guest
+spamming requests just produces visible dialogs you deny. The unavoidable
+residual: while a `--clip` session is running, treat your clipboard as reachable
+by the box on approval — don't copy secrets you wouldn't hand it, and leave the
+feature off when you don't need it.
+
+The bridge is written to keep the shared directory from becoming an escape hatch:
+the guest's trigger files are acted on by *existence only* — their contents are
+never read — and everything served back is staged in a host-only directory and
+renamed onto the same filesystem into the shared mount, so a symlink the guest
+plants there can't redirect a host write. The dialog text is composed on the
+host; no guest bytes ever reach it.
+
+Two practical notes:
+
+- **macOS host only.** On a non-macOS host the bridge is silently skipped (pass `--clip` explicitly there and it says why).
+- **Images need [`pngpaste`](https://github.com/jcsalterego/pngpaste)**, which is **installed for you via Homebrew** on first use if it's missing — the same way `msb` is. If it can't be installed (no Homebrew, or the install fails), image paste degrades off with a warning and text paste still works.
+- **The shared directory is an extra mount**, and mounts are fixed when the VM boots. A VM created before the bridge existed won't have the mount, so on those the bridge needs `vm-claude --rm` and a fresh start; the session warns when it resumes a VM whose bridge isn't wired up.
+- **Host state and lifecycle.** The watcher and its shared/staging dirs live under `~/.cache/vm-claude/clip/<vm-name>/`. The watcher runs only while a session is up: it's reaped on exit, self-terminates if its `vm-claude` dies without reaping it (e.g. a `kill -9`), and `--stop`/`--rm` also reap a stray one. `--rm` additionally deletes that VM's cache dir; `--stop` leaves it (it's recreated on the next run). Nothing polls or reads your clipboard when no session is running.
 
 ### Timezone
 
@@ -157,6 +209,7 @@ All configuration is via environment variables:
 | `CLAUDE_VM_SKIP_PERMISSIONS` | `1` | `1` passes `--dangerously-skip-permissions`; `0` keeps the prompts |
 | `CLAUDE_VM_SIGN_ON_EXIT` | host `commit.gpgsign` | `1`/`0` forces `--sign-on-exit` on/off; unset, it defaults on when the host has `commit.gpgsign=true` |
 | `CLAUDE_VM_TZ` | the host's zone | Timezone for the guest, e.g. `Europe/Lisbon` |
+| `CLAUDE_VM_CLIP` | `1` | `1` (default) bridges the macOS clipboard into the guest so Ctrl-V image paste works, approving each paste via a host dialog; `0` (or `--no-clip`) turns it off. macOS host only; `pngpaste` is auto-installed via Homebrew |
 | `CLAUDE_VM_CONFIG` | `1` | `1` copies the `~/.claude` allowlist into the guest; `0` skips it |
 | `CLAUDE_VM_CONFIG_DIR` | `~/.claude` | Host directory to copy that config from |
 | `CLAUDE_VM_CONFIG_ITEMS` | see [Claude config](#claude-config) | Space-separated allowlist of entries to copy |
