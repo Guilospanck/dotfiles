@@ -44,6 +44,7 @@ vm-claude --stop          # stop this project's VM
 vm-claude --rm            # stop + delete the VM (wipes its auth/session state)
 vm-claude --sign-on-exit  # sign the commits the VM made, on the host, on exit
 vm-claude --no-clip       # disable the clipboard bridge (on by default)
+vm-claude --worktree NAME # run in a git worktree (created if missing), same VM
 vm-claude -- <args...>    # pass args straight through to `claude`
 ```
 
@@ -95,6 +96,47 @@ It's already the default when your host is set up to sign commits anyway — if 
 Signing rewrites the commits, so their hashes change. Run it before pushing, not after.
 
 Two things it deliberately cannot do. It only signs commits made **during that run** — anything already unsigned when the VM started sits below the recorded base and stays untouched, so catch those up by hand with `git rebase -f -S <last good commit>`. And the hook lives in the running `vm-claude` process: editing the script, or deciding to enable the flag, does nothing for a session that is already up. A VM started without it will exit without it.
+
+### Git worktrees
+
+`--worktree NAME` runs Claude in a [git worktree](https://git-scm.com/docs/git-worktree)
+of the project instead of at the repo root, so you can drive several branches in
+parallel — **without booting a second VM**:
+
+```bash
+vm-claude --worktree feat-x     # work on branch feat-x in its own dir
+vm-claude --worktree bugfix     # another one, same VM
+vm-claude                       # still the repo root, same VM
+```
+
+The worktree lives **under the repo root** at `.vm-worktrees/NAME`, which is why
+it can share the VM: that path is already inside the `/workspace` mount, so an
+already-running VM sees it live with no `--rm` and no reboot. (Mounts are fixed
+at boot; a worktree placed *outside* the root couldn't be reached without a fresh
+VM.) `.vm-worktrees/` is added to `.git/info/exclude` on first use, so the main
+repo never reports the worktrees as untracked. Change the location with
+`CLAUDE_VM_WORKTREE_DIR`.
+
+If the worktree doesn't exist yet it's **created for you**: a new branch `NAME`
+off the current `HEAD`, or a checkout of branch `NAME` if it already exists. It's
+created with `git worktree add --relative-paths` (git ≥ 2.48) so the worktree's
+`.git` pointer files use relative paths and resolve correctly both on the host
+and under `/workspace` in the guest — the guest's older git reads relative links
+fine even though it can't write them. On an older host git the links are
+relativized by hand as a fallback.
+
+**Gitignored files are copied in on creation.** A fresh `git worktree add` checks
+out only *tracked* files, so a new worktree has none of your `.env`, secrets, or
+other ignored/untracked files. On the first creation `vm-claude` copies every
+untracked and gitignored file from the main working tree into the new worktree
+(via `git ls-files --others [--ignored]` piped through `tar`). This happens
+**only when the worktree is created** — later runs leave the worktree's own
+copies alone, so edits you make to its `.env` inside the VM stick.
+
+`--sign-on-exit` follows the worktree: it records and re-signs `HEAD` on the
+worktree's branch, not the repo root's. Removing a worktree is manual — the tool
+never deletes one; use `git worktree remove .vm-worktrees/NAME` (and `git branch
+-d NAME`) when you're done.
 
 ### Pasting images (clipboard bridge)
 
@@ -215,6 +257,7 @@ All configuration is via environment variables:
 | `CLAUDE_VM_CONFIG_ITEMS` | see [Claude config](#claude-config) | Space-separated allowlist of entries to copy |
 | `CLAUDE_VM_CONFIG_MAX_KB` | `120` | Size ceiling for the copied config, in KB |
 | `CLAUDE_VM_SETTINGS_STRIP` | `hooks statusLine` | Space-separated `settings.json` keys to drop in the guest; `""` keeps everything |
+| `CLAUDE_VM_WORKTREE_DIR` | `.vm-worktrees` | Subdir under the repo root that holds `--worktree` checkouts |
 
 ```bash
 CLAUDE_VM_CPUS=4 CLAUDE_VM_MEMORY=8G vm-claude

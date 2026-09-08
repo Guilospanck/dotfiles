@@ -15,6 +15,8 @@
 #   vm-claude --rm            # stop + delete VM (wipes its auth/session state)
 #   vm-claude --sign-on-exit  # sign the VM's commits on the host when it exits
 #   vm-claude --no-clip       # disable the clipboard bridge (on by default)
+#   vm-claude --worktree NAME # run in a git worktree (created if missing) in the
+#                             # same VM; gitignored files are copied in on create
 #   vm-claude -- <args...>    # pass args straight to `claude`
 #
 # claude runs with --dangerously-skip-permissions by default: the microVM is
@@ -44,6 +46,8 @@
 #                       Claude's Ctrl-V image paste works, approving each paste
 #                       via a host dialog; 0 (or --no-clip) turns it off. macOS
 #                       host only; pngpaste is auto-installed via Homebrew.
+#   CLAUDE_VM_WORKTREE_DIR  subdir under the repo root that holds --worktree
+#                       checkouts (default ".vm-worktrees")
 
 set -euo pipefail
 
@@ -57,6 +61,15 @@ DISK="${CLAUDE_VM_DISK:-4G}"
 MOUNT_DIR="${CLAUDE_VM_MOUNT:-$PWD}"
 SKIP_PERMISSIONS="${CLAUDE_VM_SKIP_PERMISSIONS:-1}"
 HEAD_BEFORE=""
+
+# --worktree: run in a git worktree of the mounted repo instead of at its root.
+# The worktree lives UNDER the repo root (so it's inside the existing /workspace
+# mount and reuses the same VM), and sign-on-exit operates on it rather than the
+# root. HOST_GIT_WORKTREE is the host repo path the signing hook targets; it
+# defaults to MOUNT_DIR and is repointed at the worktree when --worktree is used.
+WORKTREE_NAME=""
+WORKTREE_SUBDIR="${CLAUDE_VM_WORKTREE_DIR:-.vm-worktrees}"
+HOST_GIT_WORKTREE=""
 
 # Default sign-on-exit ON when the host is already set up to sign commits
 # (commit.gpgsign=true) -- otherwise a VM session silently leaves a run of
@@ -244,6 +257,43 @@ if [ -z "${CLAUDE_VM_MOUNT:-}" ] && command -v git >/dev/null 2>&1; then
   fi
 fi
 GUEST_WORKDIR="/workspace${SUBPATH}"
+
+# sign-on-exit targets the mounted repo by default; --worktree repoints it below.
+HOST_GIT_WORKTREE="$MOUNT_DIR"
+WT_HOST=""
+
+# Pre-scan args for --worktree so the resolution below (and the VM name) can
+# account for it -- this runs before main() does the authoritative parse. Stop
+# at `--` so a --worktree meant for `claude` isn't mistaken for ours.
+_prev=""
+for _a in "$@"; do
+  [ "$_a" = "--" ] && break
+  case "$_prev" in --worktree) WORKTREE_NAME="$_a" ;; esac
+  case "$_a" in --worktree=*) WORKTREE_NAME="${_a#*=}" ;; esac
+  _prev="$_a"
+done
+unset _prev _a
+
+# --- resolve --worktree ----------------------------------------------------
+# The worktree lives at <repo-root>/<subdir>/<name>, which is under the mounted
+# /workspace, so the same VM sees it with no remount. MOUNT_DIR (and thus the VM
+# name) stays the repo root -> same VM for every worktree of a repo.
+if [ -n "$WORKTREE_NAME" ]; then
+  command -v git >/dev/null 2>&1 || {
+    echo "vm-claude: --worktree needs git on the host." >&2; exit 1
+  }
+  if ! WT_ROOT="$(cd "$MOUNT_DIR" && git rev-parse --show-toplevel 2>/dev/null)"; then
+    echo "vm-claude: --worktree needs to be run inside a git repo (${MOUNT_DIR} isn't one)." >&2
+    exit 1
+  fi
+  MOUNT_DIR="$WT_ROOT"
+  case "$WORKTREE_NAME" in
+    */*|.|..) echo "vm-claude: --worktree name must be a single path segment." >&2; exit 1 ;;
+  esac
+  WT_HOST="${MOUNT_DIR}/${WORKTREE_SUBDIR}/${WORKTREE_NAME}"
+  GUEST_WORKDIR="/workspace/${WORKTREE_SUBDIR}/${WORKTREE_NAME}"
+  HOST_GIT_WORKTREE="$WT_HOST"
+fi
 
 # --- stable per-project VM name --------------------------------------------
 # Hash the absolute path so each project gets its own persistent VM.
@@ -451,7 +501,7 @@ config_sanitize_cmd() {
 # where the key lives. --force-rebase is required: a plain rebase onto an
 # ancestor fast-forwards, re-creates nothing, and so signs nothing.
 host_head() {
-  git -C "$MOUNT_DIR" rev-parse HEAD 2>/dev/null || true
+  git -C "$HOST_GIT_WORKTREE" rev-parse HEAD 2>/dev/null || true
 }
 
 sign_new_commits() {
@@ -459,7 +509,7 @@ sign_new_commits() {
   after="$(host_head)"
 
   if [ -z "$before" ] || [ -z "$after" ]; then
-    echo "sign-on-exit: could not read HEAD in ${MOUNT_DIR}, skipping." >&2
+    echo "sign-on-exit: could not read HEAD in ${HOST_GIT_WORKTREE}, skipping." >&2
     return 0
   fi
   if [ "$before" = "$after" ]; then
@@ -467,29 +517,29 @@ sign_new_commits() {
     return 0
   fi
 
-  branch="$(git -C "$MOUNT_DIR" symbolic-ref --quiet --short HEAD 2>/dev/null || true)"
+  branch="$(git -C "$HOST_GIT_WORKTREE" symbolic-ref --quiet --short HEAD 2>/dev/null || true)"
   if [ -z "$branch" ]; then
     echo "sign-on-exit: HEAD is detached, skipping." >&2
-    echo "  sign manually: git -C '${MOUNT_DIR}' rebase -f -S ${before}" >&2
+    echo "  sign manually: git -C '${HOST_GIT_WORKTREE}' rebase -f -S ${before}" >&2
     return 0
   fi
 
   # If claude rebased or reset rather than just committing, $before is no
   # longer an ancestor and rewriting from it would discard work. Bail instead.
-  if ! git -C "$MOUNT_DIR" merge-base --is-ancestor "$before" "$after" 2>/dev/null; then
+  if ! git -C "$HOST_GIT_WORKTREE" merge-base --is-ancestor "$before" "$after" 2>/dev/null; then
     echo "sign-on-exit: history diverged from ${before}, skipping to avoid rewriting it." >&2
     return 0
   fi
 
-  n="$(git -C "$MOUNT_DIR" rev-list --count "${before}..${after}" 2>/dev/null || echo 0)"
+  n="$(git -C "$HOST_GIT_WORKTREE" rev-list --count "${before}..${after}" 2>/dev/null || echo 0)"
   echo "sign-on-exit: signing ${n} new commit(s) on ${branch}..." >&2
 
-  if git -C "$MOUNT_DIR" rebase --force-rebase --gpg-sign --autostash "$before" >/dev/null 2>&1; then
-    echo "sign-on-exit: done, ${branch} is now $(git -C "$MOUNT_DIR" rev-parse --short HEAD)." >&2
+  if git -C "$HOST_GIT_WORKTREE" rebase --force-rebase --gpg-sign --autostash "$before" >/dev/null 2>&1; then
+    echo "sign-on-exit: done, ${branch} is now $(git -C "$HOST_GIT_WORKTREE" rev-parse --short HEAD)." >&2
   else
-    git -C "$MOUNT_DIR" rebase --abort >/dev/null 2>&1 || true
+    git -C "$HOST_GIT_WORKTREE" rebase --abort >/dev/null 2>&1 || true
     echo "sign-on-exit: rebase failed, nothing rewritten." >&2
-    echo "  retry manually: git -C '${MOUNT_DIR}' rebase -f -S ${before}" >&2
+    echo "  retry manually: git -C '${HOST_GIT_WORKTREE}' rebase -f -S ${before}" >&2
   fi
 }
 
@@ -520,14 +570,14 @@ arm_sign_on_exit() {
 
   HEAD_BEFORE="$(host_head)"
   if [ -z "$HEAD_BEFORE" ]; then
-    echo "sign-on-exit: no HEAD in ${MOUNT_DIR} to compare against, not arming." >&2
+    echo "sign-on-exit: no HEAD in ${HOST_GIT_WORKTREE} to compare against, not arming." >&2
     return 0
   fi
-  if [ -z "$(git -C "$MOUNT_DIR" config --get user.signingkey 2>/dev/null)" ]; then
+  if [ -z "$(git -C "$HOST_GIT_WORKTREE" config --get user.signingkey 2>/dev/null)" ]; then
     echo "warning: --sign-on-exit given but user.signingkey is unset on the host." >&2
   fi
 
-  echo "sign-on-exit: armed at $(git -C "$MOUNT_DIR" rev-parse --short HEAD)." >&2
+  echo "sign-on-exit: armed at $(git -C "$HOST_GIT_WORKTREE" rev-parse --short HEAD)." >&2
   # Sign on a clean /q, and also when the session is interrupted or its terminal
   # is closed -- Ctrl-C, SIGTERM, SIGHUP. The signal traps only exit; the EXIT
   # trap does the signing, so it runs exactly once whichever way we go down.
@@ -604,6 +654,83 @@ clip_wipe() {
   rm -rf "$CLIP_ROOT" 2>/dev/null || true
 }
 
+# --- --worktree: create/attach the worktree on the host -------------------
+# Runs on the host before the VM starts. The worktree lives under the repo root
+# so it's already inside the /workspace mount -> the same VM sees it live, no
+# remount needed even on an already-running VM. Created with --relative-paths so
+# the .git pointer files resolve identically on the host and under /workspace in
+# the guest (whose git is too old to WRITE relative links but reads them fine).
+# On first creation only, gitignored + untracked files (.env, secrets, ...) are
+# copied in from the main working tree, since `git worktree add` checks out only
+# tracked files.
+ensure_worktree() {
+  [ -n "$WORKTREE_NAME" ] || return 0
+
+  # Already there -> attach, nothing to do (the copy is create-only).
+  [ -e "$WT_HOST/.git" ] && return 0
+
+  echo "worktree: creating '${WORKTREE_NAME}' at ${WT_HOST}..." >&2
+  mkdir -p "${MOUNT_DIR}/${WORKTREE_SUBDIR}"
+
+  # Keep the worktree holder out of the main repo's status. info/exclude is local
+  # (uncommitted), unlike .gitignore -- append the line once, idempotently.
+  local excl="${MOUNT_DIR}/.git/info/exclude"
+  if [ -f "$excl" ] && ! grep -qxF "/${WORKTREE_SUBDIR}/" "$excl"; then
+    printf '/%s/\n' "$WORKTREE_SUBDIR" >> "$excl"
+  fi
+
+  # Relative pointer files (git >= 2.48) so the links survive the host->guest
+  # path remap. Older git: fall back to a plain add and relativize by hand below.
+  local relflag="" rel_fallback=0
+  if git worktree add -h 2>&1 | grep -q 'relative-paths'; then
+    relflag="--relative-paths"
+  else
+    rel_fallback=1
+    echo "worktree: host git lacks --relative-paths; relativizing links by hand." >&2
+  fi
+
+  if git -C "$MOUNT_DIR" show-ref --verify --quiet "refs/heads/${WORKTREE_NAME}"; then
+    git -C "$MOUNT_DIR" worktree add $relflag "$WT_HOST" "$WORKTREE_NAME"
+  else
+    git -C "$MOUNT_DIR" worktree add $relflag -b "$WORKTREE_NAME" "$WT_HOST"
+  fi
+
+  # Fallback relativization: rewrite the forward gitfile and the back-pointer to
+  # paths relative to the repo root, so they hold under /workspace too. Depth is
+  # fixed by WORKTREE_SUBDIR/WORKTREE_NAME (two levels below the root).
+  if [ "$rel_fallback" = 1 ]; then
+    local gitdir="${MOUNT_DIR}/.git/worktrees/${WORKTREE_NAME}"
+    printf 'gitdir: ../../.git/worktrees/%s\n' "$WORKTREE_NAME" > "$WT_HOST/.git"
+    [ -f "$gitdir/gitdir" ] && \
+      printf '../../../%s/%s/.git\n' "$WORKTREE_SUBDIR" "$WORKTREE_NAME" > "$gitdir/gitdir"
+  fi
+
+  # Copy untracked + gitignored files from the main working tree into the fresh
+  # worktree (create-only). Reuse tar (already a hard dep) with a NUL-safe file
+  # list; `.git` is never listed by `ls-files --others`, and tracked files the
+  # worktree already checked out are left untouched. The ignored pass lists the
+  # worktree holder ($WORKTREE_SUBDIR) as a collapsed nested-repo entry that
+  # pathspec exclusion won't drop, so it gets copied in -- then removed right
+  # after, so the worktree never ends up nested inside itself.
+  if command -v tar >/dev/null 2>&1; then
+    { git -C "$MOUNT_DIR" ls-files -z --others --exclude-standard
+      git -C "$MOUNT_DIR" ls-files -z --others --ignored --exclude-standard; } \
+      | tar -C "$MOUNT_DIR" --null -T - -cf - 2>/dev/null \
+      | tar -C "$WT_HOST" -xf - 2>/dev/null \
+      && echo "worktree: copied gitignored/untracked files into ${WORKTREE_NAME}." >&2 \
+      || echo "worktree: nothing extra to copy (or copy skipped)." >&2
+    rm -rf "${WT_HOST:?}/${WORKTREE_SUBDIR}" 2>/dev/null || true
+  fi
+}
+
+# Shell fragment (ending in `&&`) marking the worktree path as a safe git dir in
+# the guest. `safe.directory /workspace` doesn't cover a linked worktree's own
+# top-level, so without this git in the guest refuses it as dubiously-owned.
+worktree_safe_dir_cmd() {
+  [ -n "$WORKTREE_NAME" ] || return 0
+  printf "git config --global --add safe.directory '%s' &&\n" "$GUEST_WORKDIR"
+}
+
 # $1 is the (possibly empty) config payload; the rest is claude's own argv.
 boot_cmd() {
   cat <<EOF
@@ -612,6 +739,7 @@ apt-get update &&
 apt-get install -y --no-install-recommends ca-certificates git tzdata &&
 $(tz_setup_cmd)
 git config --global --add safe.directory /workspace &&
+$(worktree_safe_dir_cmd)
 $(host_git_config)
 npm install -g @anthropic-ai/claude-code@${VERSION} &&
 $(config_restore_cmd)
@@ -653,6 +781,7 @@ if [ -n "\$1" ]; then
   true
 fi
 shift
+$(worktree_safe_dir_cmd) true
 echo "Updating claude (@${VERSION})..." >&2
 npm install -g @anthropic-ai/claude-code@${VERSION} --no-fund --no-audit --loglevel=error \
   || echo "vm-claude: claude update failed; using the version already installed." >&2
@@ -678,6 +807,8 @@ main() {
       --no-sign-on-exit) SIGN_ON_EXIT=0; shift ;;
       --clip)    CLIP_ENABLE=1; CLIP_EXPLICIT=1; shift ;;
       --no-clip) CLIP_ENABLE=0; CLIP_EXPLICIT=1; shift ;;
+      --worktree) WORKTREE_NAME="${2:?--worktree needs a name}"; shift 2 ;;
+      --worktree=*) WORKTREE_NAME="${1#*=}"; shift ;;
       --)      shift; passthru+=("$@"); break ;;
       *)       passthru+=("$1"); shift ;;
     esac
@@ -704,6 +835,7 @@ main() {
       clip_wipe
       echo "Removed ${NAME} (state wiped)." ;;
     shell)
+      ensure_worktree
       arm_sign_on_exit
       start_watcher
       local clip_mount=()
@@ -728,6 +860,7 @@ main() {
       if [ "$SKIP_PERMISSIONS" != "0" ]; then
         passthru=(--dangerously-skip-permissions ${passthru[@]+"${passthru[@]}"})
       fi
+      ensure_worktree
       arm_sign_on_exit
       start_watcher
       if vm_exists; then
