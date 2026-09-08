@@ -3,7 +3,7 @@
 # pre-commit — keep the executable bit on tracked scripts.
 #
 # Editing a repo file from inside a VM that mounts this repo (e.g. developing
-# claude/vm-claude with vm-claude itself) rewrites the file through the mount
+# claude/vm-claude/vm-claude with vm-claude itself) rewrites the file through the mount
 # and drops its exec bit: 100755 -> 100644. With core.fileMode=true git stages
 # that mode change, and the next `vm-claude` run dies with "permission denied".
 #

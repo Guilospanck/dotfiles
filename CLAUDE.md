@@ -28,8 +28,10 @@ an `install.sh` that `install_all.sh` invokes in order.
 
 - `nvim` is a **git submodule** (<https://github.com/Guilospanck/nvim.git>) —
   change it in its own repo, not here.
-- `claude/` holds tooling for running Claude Code itself, e.g. the `vm-claude`
-  microVM wrapper. See `claude/README.md`.
+- `claude/vm-claude` is a **git submodule** (<https://github.com/Guilospanck/vm-claude.git>)
+  holding the `vm-claude` microVM wrapper — change it in its own repo, not here.
+- `claude/` otherwise holds a vendored, PII-free snapshot of `~/.claude`
+  (`settings.json`, `hooks/`, `skills/`). See `claude/README.md`.
 - Configs are consumed by symlinking, not copying — see the "Symlink setup"
   section of `README.md`.
 

@@ -2,3 +2,7 @@
 	path = nvim
 	url = https://github.com/Guilospanck/nvim.git
 	branch = master
+[submodule "claude/vm-claude"]
+	path = claude/vm-claude
+	url = https://github.com/Guilospanck/vm-claude.git
+	branch = main

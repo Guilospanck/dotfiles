@@ -10,11 +10,11 @@ default:
 # install (copy) vm-claude into {{bindir}}; re-run after editing the script
 install-vm-claude:
     install -d "{{bindir}}"
-    install -m 755 "{{justfile_directory()}}/claude/vm-claude" "{{bindir}}/vm-claude"
+    install -m 755 "{{justfile_directory()}}/claude/vm-claude/vm-claude" "{{bindir}}/vm-claude"
     @echo "installed vm-claude -> {{bindir}}/vm-claude"
 
 # symlink vm-claude into {{bindir}} so it tracks repo edits live (no re-copy)
 link-vm-claude:
     install -d "{{bindir}}"
-    ln -sf "{{justfile_directory()}}/claude/vm-claude" "{{bindir}}/vm-claude"
+    ln -sf "{{justfile_directory()}}/claude/vm-claude/vm-claude" "{{bindir}}/vm-claude"
     @echo "linked vm-claude -> {{bindir}}/vm-claude"
