@@ -30,9 +30,14 @@ ln -sfn "$DOTFILES_DIR/ghostty" ~/.config/ghostty
 
 # Tmux
 ln -sf "$DOTFILES_DIR/tmux/.tmux.conf" ~/.tmux.conf
+
+# Zsh
+ln -sf "$DOTFILES_DIR/zsh/.zshrc" ~/.zshrc
 ```
 
-> **Note:** Alacritty, Zellij, and Ghostty symlink the entire directory. Tmux symlinks the single `.tmux.conf` file to `~/.tmux.conf`.
+> **Note:** Alacritty, Zellij, and Ghostty symlink the entire directory. Tmux and Zsh symlink single files (`~/.tmux.conf`, `~/.zshrc`).
+>
+> Secrets and machine-specific settings go in `~/.zshrc.local`, which `.zshrc` sources if present. Never commit it.
 
 ## Ubuntu
 
