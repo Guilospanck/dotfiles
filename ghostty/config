@@ -108,3 +108,5 @@ keybind = super+up=text:\u{e144}
 keybind = super+down=text:\u{e145}
 keybind = super+left=text:\u{e146}
 keybind = super+right=text:\u{e147}
+
+mouse-shift-capture = never
