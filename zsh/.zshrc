@@ -174,7 +174,7 @@ cleanup-caches() {
   _cc_has yarn   && _cc_run yarn cache clean
   _cc_rm ~/.yarn/berry/cache
   _cc_has pnpm   && _cc_run pnpm store prune
-  _cc_has bun    && _cc_run bun pm cache rm
+  _cc_rm ~/.bun/install/cache  # `bun pm cache rm` needs a package.json
   _cc_has pip3   && _cc_run pip3 cache purge
   _cc_has uv     && _cc_run uv cache clean
   _cc_rm ~/Library/Caches/pypoetry/cache ~/Library/Caches/pypoetry/artifacts
