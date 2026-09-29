@@ -6,37 +6,65 @@ Yet another dotfiles in order to speed the process of updating new work environm
 
 We have the `main` branch that is mostly for MacOS and we have the `omarchy` branch that is supposed to be used with `Omarchy` (Arch, Wayland, Hyprland).
 
-## How to use
+## New Mac: one command
 
 ```bash
-./install_all.sh
+curl -fsSL https://raw.githubusercontent.com/Guilospanck/dotfiles/main/bootstrap.sh | bash
 ```
 
-## Symlink setup (for agents)
+`bootstrap.sh` installs the Xcode Command Line Tools and Nix (Determinate Systems
+installer), clones this repo with submodules into `~/repos/MyRepositories/dotfiles`,
+then applies the flake with nix-darwin. It is safe to re-run.
 
-To set up the dotfiles, create symbolic links from this repository to the expected config locations. The following commands assume the repository is cloned at `$DOTFILES_DIR`.
+| Env var | Default | Meaning |
+| --- | --- | --- |
+| `DOTFILES_DIR` | `~/repos/MyRepositories/dotfiles` | Clone location. The flake links configs from this path, so change `dotfilesDir` in `flake.nix` too. |
+| `FLAKE_HOST` | `mac` | `darwinConfigurations` entry to apply (`mac` or `G1459`). |
 
-```bash
-DOTFILES_DIR="$(cd "$(dirname "$0")" && pwd)"
+After the flake, it also installs Rust via rustup, clones the nvim config
+(`kickstart-modular.nvim`) into `~/.config/nvim` if missing, and adds the
+helm-secrets plugin.
 
-# Alacritty
-ln -sfn "$DOTFILES_DIR/alacritty" ~/.config/alacritty
+Manual steps left: fill in `~/.gitconfig` from `git/.gitconfig` (signing key,
+GitHub token), put secrets in `~/.zshrc.local`, sign in to apps.
 
-# Zellij
-ln -sfn "$DOTFILES_DIR/zellij" ~/.config/zellij
+## Day to day
 
-# Ghostty
-ln -sfn "$DOTFILES_DIR/ghostty" ~/.config/ghostty
+| Command | What it does |
+| --- | --- |
+| `just switch` | Apply the config: Homebrew packages/apps, macOS defaults, config links |
+| `just update` | Bump flake inputs (`flake.lock`), then switch |
 
-# Tmux
-ln -sf "$DOTFILES_DIR/tmux/.tmux.conf" ~/.tmux.conf
+Nix only sees files tracked by git, so `git add` new files before `just switch`.
 
-# Zsh
-ln -sf "$DOTFILES_DIR/zsh/.zshrc" ~/.zshrc
-```
+### Layout
 
-> **Note:** Alacritty, Zellij, and Ghostty symlink the entire directory. Tmux and Zsh symlink single files (`~/.tmux.conf`, `~/.zshrc`).
->
+| Path | What it holds |
+| --- | --- |
+| `flake.nix` | Entry point; `darwinConfigurations.mac` / `.G1459` |
+| `nix/darwin.nix` | System: nix-homebrew, zsh, macOS defaults |
+| `nix/homebrew.nix` | Homebrew taps, formulae and casks. Add a package here, then `just switch` |
+| `nix/home.nix` | home-manager: config links into this repo |
+
+`nix/homebrew.nix` uses `cleanup = "none"`, so switching never uninstalls
+anything. Once the list is pruned, set it to `"zap"` to make Homebrew fully
+declarative.
+
+### Config links
+
+home-manager links these to the repo checkout (out-of-store links, so edits
+apply live without a rebuild):
+
+| Target | Source |
+| --- | --- |
+| `~/.zshrc` | `zsh/.zshrc` |
+| `~/.tmux.conf` | `tmux/.tmux.conf` |
+| `~/.config/ghostty` | `ghostty/` |
+| `~/.config/alacritty` | `alacritty/` |
+| `~/.config/zellij` | `zellij/` |
+
+An existing real file at a target is moved to `<target>.hm-bak` on the first switch.
+
 > Secrets and machine-specific settings go in `~/.zshrc.local`, which `.zshrc` sources if present. Never commit it.
 
 ## Ubuntu

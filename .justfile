@@ -18,3 +18,12 @@ link-vm-claude:
     install -d "{{bindir}}"
     ln -sf "{{justfile_directory()}}/claude/vm-claude/vm-claude" "{{bindir}}/vm-claude"
     @echo "linked vm-claude -> {{bindir}}/vm-claude"
+
+# apply the nix-darwin + home-manager config (packages, apps, config links)
+switch host="mac":
+    sudo darwin-rebuild switch --flake "{{justfile_directory()}}#{{host}}"
+
+# bump flake inputs (nixpkgs, nix-darwin, home-manager), then apply
+update host="mac":
+    nix flake update --flake "{{justfile_directory()}}"
+    just switch {{host}}

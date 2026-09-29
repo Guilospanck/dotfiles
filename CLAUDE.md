@@ -23,8 +23,10 @@ matching the top-level directory, e.g. `tmux: port settings from omarchy` or
 ## Repository layout
 
 This is a dotfiles repo. Each top-level directory holds the config for one tool
-(`alacritty`, `ghostty`, `tmux`, `zsh`, `git`, `nvim`, …), and several also ship
-an `install.sh` that `install_all.sh` invokes in order.
+(`alacritty`, `ghostty`, `tmux`, `zsh`, `git`, `nvim`, …). Machine setup is a
+Nix flake: `flake.nix` + `nix/` (nix-darwin, home-manager, Homebrew via
+`nix/homebrew.nix`), applied by `bootstrap.sh` on a new Mac and `just switch`
+afterward. New packages go in `nix/homebrew.nix`, not in ad-hoc install scripts.
 
 - `nvim` is a **git submodule** (<https://github.com/Guilospanck/nvim.git>) —
   change it in its own repo, not here.
@@ -32,8 +34,9 @@ an `install.sh` that `install_all.sh` invokes in order.
   holding the `vm-claude` microVM wrapper — change it in its own repo, not here.
 - `claude/` otherwise holds a vendored, PII-free snapshot of `~/.claude`
   (`settings.json`, `hooks/`, `skills/`). See `claude/README.md`.
-- Configs are consumed by symlinking, not copying — see the "Symlink setup"
-  section of `README.md`.
+- Configs are consumed by symlinking, not copying — home-manager creates the
+  links (`nix/home.nix`); see "Config links" in `README.md`.
+- Nix only sees git-tracked files: `git add` new files before building.
 
 ## Branches
 
