@@ -76,11 +76,6 @@ if [ ! -e "$HOME/.config/nvim" ]; then
   git clone "$NVIM_URL" "$HOME/.config/nvim"
 fi
 
-if ! helm plugin list 2>/dev/null | grep -q '^secrets'; then
-  log "Installing helm-secrets plugin"
-  helm plugin install https://github.com/jkroepke/helm-secrets --version v4.4.1
-fi
-
 log "Done. Manual steps left:
   - Fill in ~/.gitconfig from git/.gitconfig (signing key, GitHub token)
   - Put secrets and machine-specific settings in ~/.zshrc.local

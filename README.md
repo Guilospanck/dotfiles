@@ -21,9 +21,8 @@ then applies the flake with nix-darwin. It is safe to re-run.
 | `DOTFILES_DIR` | `~/repos/MyRepositories/dotfiles` | Clone location. The flake links configs from this path, so change `dotfilesDir` in `flake.nix` too. |
 | `FLAKE_HOST` | `mac` | `darwinConfigurations` entry to apply (`mac` or `G1459`). |
 
-After the flake, it also installs Rust via rustup, clones the nvim config
-(`kickstart-modular.nvim`) into `~/.config/nvim` if missing, and adds the
-helm-secrets plugin.
+After the flake, it also installs Rust via rustup and clones the nvim config
+(`kickstart-modular.nvim`) into `~/.config/nvim` if missing.
 
 Manual steps left: fill in `~/.gitconfig` from `git/.gitconfig` (signing key,
 GitHub token), put secrets in `~/.zshrc.local`, sign in to apps.
