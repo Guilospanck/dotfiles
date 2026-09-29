@@ -59,13 +59,13 @@ apply live without a rebuild):
 | `~/.zshrc` | `zsh/.zshrc` |
 | `~/.tmux.conf` | `tmux/.tmux.conf` |
 | `~/.config/ghostty` | `ghostty/` |
-| `~/.config/zellij` | `zellij/` |
 
 An existing real file at a target is moved to `<target>.hm-bak` on the first switch.
 
-Alacritty is no longer installed or linked (ghostty replaced it), but `alacritty/`
-stays in the repo. To switch back, add the `alacritty` cask to `nix/homebrew.nix`
-and `xdg.configFile."alacritty".source = link "alacritty";` to `nix/home.nix`.
+Alacritty (replaced by ghostty) and Zellij (replaced by tmux) are no longer
+installed or linked, but `alacritty/` and `zellij/` stay in the repo. To switch
+back, add the `alacritty` cask or `zellij` formula to `nix/homebrew.nix` and the
+matching `xdg.configFile."<name>".source = link "<name>";` line to `nix/home.nix`.
 
 > Secrets and machine-specific settings go in `~/.zshrc.local`, which `.zshrc` sources if present. Never commit it.
 
