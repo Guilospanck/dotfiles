@@ -6,6 +6,7 @@ A small collection of tooling and config for [Claude Code](https://claude.com/cl
 | --- | --- |
 | [`vm-claude/`](https://github.com/Guilospanck/vm-claude) | **Git submodule** — run Claude Code inside an isolated microVM, one per project. See its own README. |
 | `settings.json`, `hooks/`, `skills/` | A version-controlled snapshot of the portable, PII-free parts of the host `~/.claude` config — see [Vendored config](#vendored-claude-config). |
+| `setup-graphify.sh` | Installs [graphify](https://pypi.org/project/graphifyy/) (via `uv`) and wires it into Claude Code for one repo: builds the graph, adds auto-update hooks to the repo's `.claude/settings.json`, and ignores graph output in `.claudeignore`. Run `./setup-graphify.sh [repo-path]` (default: current directory); safe to re-run. Not part of the vendored `~/.claude` snapshot. |
 
 ## vm-claude
 
