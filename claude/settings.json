@@ -1,41 +1,19 @@
 {
+  "env": {
+    "CLAUDE_CODE_SUBAGENT_MODEL": "opus"
+  },
   "permissions": {
     "allow": [],
     "defaultMode": "auto"
   },
-  "model": "claude-opus-4-8",
   "hooks": {
     "Notification": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$HOME/.claude/hooks/peon-ping/peon.sh",
-            "timeout": 10,
-            "async": true
-          }
-        ]
-      },
       {
         "matcher": "permission_prompt|elicitation_dialog",
         "hooks": [
           {
             "type": "command",
             "command": "workmux set-window-status waiting"
-          }
-        ]
-      }
-    ],
-    "PermissionRequest": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$HOME/.claude/hooks/peon-ping/peon.sh",
-            "timeout": 10,
-            "async": true
           }
         ]
       }
@@ -62,54 +40,10 @@
         ]
       }
     ],
-    "PostToolUseFailure": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$HOME/.claude/hooks/peon-ping/peon.sh",
-            "timeout": 10,
-            "async": true
-          }
-        ]
-      }
-    ],
-    "PreCompact": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$HOME/.claude/hooks/peon-ping/peon.sh",
-            "timeout": 10,
-            "async": true
-          }
-        ]
-      }
-    ],
-    "SessionEnd": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$HOME/.claude/hooks/peon-ping/peon.sh",
-            "timeout": 10,
-            "async": true
-          }
-        ]
-      }
-    ],
     "SessionStart": [
       {
         "matcher": "",
         "hooks": [
-          {
-            "type": "command",
-            "command": "$HOME/.claude/hooks/peon-ping/peon.sh",
-            "timeout": 10
-          },
           {
             "type": "command",
             "command": "$HOME/.claude/hooks/caveman-session.sh",
@@ -120,17 +54,6 @@
     ],
     "Stop": [
       {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$HOME/.claude/hooks/peon-ping/peon.sh",
-            "timeout": 10,
-            "async": true
-          }
-        ]
-      },
-      {
         "hooks": [
           {
             "type": "command",
@@ -139,36 +62,24 @@
         ]
       }
     ],
-    "SubagentStart": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$HOME/.claude/hooks/peon-ping/peon.sh",
-            "timeout": 10,
-            "async": true
-          }
-        ]
-      }
-    ],
     "UserPromptSubmit": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$HOME/.claude/hooks/peon-ping/peon.sh",
-            "timeout": 10,
-            "async": true
-          }
-        ]
-      },
       {
         "hooks": [
           {
             "type": "command",
             "command": "workmux set-window-status working"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/consult-llm-monitor.sh",
+            "timeout": 5
           }
         ]
       }
@@ -184,7 +95,8 @@
     "gopls-lsp@claude-plugins-official": true,
     "i-have-adhd@i-have-adhd": true,
     "rust-analyzer-lsp@claude-plugins-official": true,
-    "superpowers@claude-plugins-official": true
+    "superpowers@claude-plugins-official": true,
+    "swift-lsp@claude-plugins-official": true
   },
   "extraKnownMarketplaces": {
     "i-have-adhd": {
@@ -195,6 +107,10 @@
     }
   },
   "effortLevel": "high",
+  "voice": {
+    "enabled": true,
+    "mode": "hold"
+  },
   "skipDangerousModePermissionPrompt": true,
   "skipWorkflowUsageWarning": true,
   "remoteControlAtStartup": false,

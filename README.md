@@ -59,6 +59,9 @@ apply live without a rebuild):
 | `~/.zshrc` | `zsh/.zshrc` |
 | `~/.tmux.conf` | `tmux/.tmux.conf` |
 | `~/.config/ghostty` | `ghostty/` |
+| `~/.claude/settings.json` | `claude/settings.json` |
+| `~/.claude/hooks` | `claude/hooks/` |
+| `~/.claude/skills/<name>` | `claude/skills/<name>/`, one link per tracked skill |
 
 An existing real file at a target is moved to `<target>.hm-bak` on the first switch.
 
