@@ -32,6 +32,7 @@ hl.unbind("SUPER + P")
 hl.unbind("SUPER + K")
 hl.unbind("SUPER + J")
 hl.unbind("SUPER + Y")
+hl.unbind("SUPER + G")
 hl.unbind("ALT + TAB")
 
 hl.unbind("SUPER + W")
