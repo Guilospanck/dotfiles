@@ -83,6 +83,14 @@ o.bind("SUPER + ALT + F", "Force full screen", hl.dsp.window.fullscreen({ mode =
 o.bind("SUPER + grave", "Move workspaces to monitor", os.getenv("HOME") .. "/.config/hypr/scripts/move-workspaces-to-monitor.sh")
 o.bind("SUPER + CTRL + Q", "Lock Screen", lock_screen)
 
+-- Focus windows within a workspace. SUPER+arrows/HJKL are taken by
+-- nvim/tmux passthrough, so this is vim's hjkl shifted one key right
+-- (J=left, K=down, L=up, ;=right) to avoid clashing with those.
+o.bind("ALT + SHIFT + J", "Focus on left window", hl.dsp.focus({ direction = "l" }))
+o.bind("ALT + SHIFT + K", "Focus on below window", hl.dsp.focus({ direction = "d" }))
+o.bind("ALT + SHIFT + L", "Focus on above window", hl.dsp.focus({ direction = "u" }))
+o.bind("ALT + SHIFT + semicolon", "Focus on right window", hl.dsp.focus({ direction = "r" }))
+
 -- o.bind("SUPER + F", "File manager", o.launch("nautilus --new-window"))
 -- o.bind("SUPER + SHIFT + B", "Browser (private)", browser .. " --private")
 -- o.bind("SUPER + N", "Editor", "omarchy-launch-editor")
