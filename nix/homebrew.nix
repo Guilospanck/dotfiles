@@ -15,7 +15,11 @@
       "guilospanck/tap"
       "raine/consult-llm"
       "raine/workmux"
-      "shodan-public/shodan"
+      # Hosted on GitLab; a bare name makes brew clone from GitHub, where it 404s.
+      {
+        name = "shodan-public/shodan";
+        clone_target = "https://gitlab.com/shodan-public/homebrew-shodan";
+      }
       "stripe/stripe-cli"
     ];
 
