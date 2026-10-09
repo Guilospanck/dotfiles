@@ -3,6 +3,10 @@ export GOROOT=/opt/homebrew/opt/go/libexec
 export PATH=$PATH:$GOPATH/bin
 export PATH=$PATH:$GOROOT/bin
 export PATH="/usr/local/bin:/usr/local/sbin:~/bin:$PATH"
+# claude, uv, msb, graphify install here
+export PATH="$HOME/.local/bin:$PATH"
+# let native builds link against Homebrew libraries
+export LIBRARY_PATH="$LIBRARY_PATH:/opt/homebrew/lib"
 
 export EDITOR=nvim
 
@@ -40,13 +44,8 @@ alias git-prune="git fetch --prune && git branch -vv | grep 'gone]' | awk '{prin
 # cargo watch alias
 alias cwatch='cargo watch -x run'
 
-# wasm opt 
-alias wasm-opt='~/binaryen-version_118/bin/wasm-opt'
-
 # z
 . $HOMEBREW_PREFIX/etc/profile.d/z.sh
-
-export PATH="/opt/homebrew/opt/node@16/bin:$PATH"
 
 # alias for caffeinate - prevents mac from sleeping
 alias kaffee='caffeinate -disu'
@@ -61,13 +60,10 @@ alias kaffee='caffeinate -disu'
 # . /opt/homebrew/opt/asdf/libexec/asdf.sh
 
 
-### dive
-export DOCKER_HOST=unix://$HOME/.colima/docker.sock
-
 ### docker and colima
 export DOCKER_HOST="unix://$HOME/.colima/docker.sock"
 
-alias startcolima='colima start --network-address --vm-type vz --cpu 8 --memory 12'
+alias startcolima='colima start --network-address --vm-type vz --vz-rosetta --mount-type virtiofs --cpu 8 --memory 12 --disk 200'
 
 # Nix
 if [ -e '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh' ]; then

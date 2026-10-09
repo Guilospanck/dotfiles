@@ -14,21 +14,35 @@ curl -fsSL https://raw.githubusercontent.com/Guilospanck/dotfiles/main/bootstrap
 
 `bootstrap.sh` installs the Xcode Command Line Tools and Nix (Determinate Systems
 installer), clones this repo with submodules into `~/repos/MyRepositories/dotfiles`,
-applies the flake with nix-darwin (trackpad, mouse, scroll direction and speed,
-3-finger drag, tap/right-click, key repeat, dark mode, …), restores keyboard
-shortcuts from `macos/symbolichotkeys.plist`, and installs the git hooks. It is
-safe to re-run. On an already-cloned repo, `just setup` does the same.
+applies the flake with nix-darwin (trackpad, mouse, keyboard remap and
+shortcuts, Dock, Finder, menu bar, power, app preferences, login apps, …), and
+installs the git hooks. It is safe to re-run. On an already-cloned repo,
+`just setup` does the same.
 
 | Env var | Default | Meaning |
 | --- | --- | --- |
 | `DOTFILES_DIR` | `~/repos/MyRepositories/dotfiles` | Clone location. The flake links configs from this path, so change `dotfilesDir` in `flake.nix` too. |
 | `FLAKE_HOST` | `mac` | `darwinConfigurations` entry to apply (`mac` or `G1459`). |
 
-After the flake, it also installs Rust via rustup and clones the nvim config
-(`kickstart-modular.nvim`) into `~/.config/nvim` if missing.
+Before the flake it installs Rosetta. After it, it installs what Homebrew does
+not carry: Rust via rustup (plus components and targets), Node LTS via nvm,
+Claude Code, graphify, the marketplace Claude skills, and it links `vm-claude`
+and clones the nvim config (`kickstart-modular.nvim`) into `~/.config/nvim` if
+missing. These extra steps warn and continue if one fails.
 
-Manual steps left: fill in `~/.gitconfig` from `git/.gitconfig` (signing key,
-GitHub token), put secrets in `~/.zshrc.local`, sign in to apps.
+What no script can do:
+
+- **Mission Control desktops**: add desktops until there are 4. `Cmd+1..4`
+  switch to them, but macOS has no way to create desktops from a script.
+- **Secretive key**: it lives in the Secure Enclave, so each Mac needs its own.
+  Create it in Secretive, add it to GitHub (authentication and signing) and to
+  `git/.gitallowedsigners`, then re-run `just switch`: it writes
+  `~/.gitconfig.local` (signing key, `commit.gpgsign`, SSH rewrite for GitHub).
+- **Privacy permissions**: Accessibility for Rectangle, Raycast and Clipy,
+  Input Monitoring for KeyCastr. Only a click or the company device management
+  can grant these.
+- **Default browser**: macOS always asks to confirm.
+- Secrets in `~/.zshrc.local`, and app sign-ins.
 
 ## Day to day
 
@@ -42,8 +56,9 @@ GitHub token), put secrets in `~/.zshrc.local`, sign in to apps.
 | `just hotkeys-import` | Restore keyboard shortcuts on a new Mac from that snapshot |
 | `just install-hooks` | Symlink repo git hooks into `.git/hooks` (once per clone; bootstrap does it too) |
 
-Keyboard shortcuts live in `macos/symbolichotkeys.plist`; everything else lives
-in `nix/darwin.nix` under `system.defaults`. To keep the shortcut snapshot in
+Keyboard shortcuts live in `macos/symbolichotkeys.plist`, which every
+`just switch` re-applies; everything else lives in `nix/darwin.nix` (macOS
+defaults, Caps Lock as Escape, app preferences, login apps). To keep the shortcut snapshot in
 sync, use `just push` — it refreshes and commits the plist (if changed) *before*
 pushing, so the update ships in that push. A `pre-push` hook is the safety net
 for a raw `git push`: it does the same refresh + commit, but git has already
@@ -76,6 +91,13 @@ apply live without a rebuild):
 | `~/.zshrc` | `zsh/.zshrc` |
 | `~/.tmux.conf` | `tmux/.tmux.conf` |
 | `~/.config/ghostty` | `ghostty/` |
+| `~/.gitconfig`, `~/.gitignore`, `~/.gitallowedsigners` | `git/` (same names) |
+| `~/.config/starship.toml` | `starship/starship.toml` |
+| `~/.config/consult-llm/config.yaml` | `consult-llm/config.yaml` |
+| `~/.config/workmux/config.yaml` | `workmux/config.yaml` |
+| `~/.config/odin/odinfmt.json` | `odin/odinfmt.json` |
+| `~/.docker/cli-plugins/docker-{buildx,compose}` | the Homebrew binaries |
+| `~/.claude/CLAUDE.md` | `claude/CLAUDE.md` |
 | `~/.claude/settings.json` | `claude/settings.json` |
 | `~/.claude/hooks` | `claude/hooks/` |
 | `~/.claude/skills/<name>` | `claude/skills/<name>/`, one link per tracked skill |

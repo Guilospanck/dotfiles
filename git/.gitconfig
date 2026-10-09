@@ -1,15 +1,10 @@
 [user]
 	name = Guilherme Pereira
 	email = guilospanck@protonmail.com
-	signingKey = <path to ssh signing key. Example: ~/.ssh/id_rsa.pub>
-[url "https://Guilospanck:<your-github-pat-token>@github.com"] 
-        insteadOf = https://github.com
 [color]
 	ui = auto
 [core]
 	excludesFile = ~/.gitignore
-[commit]
-	gpgsign = true
 [alias]
 	tree = log --oneline --decorate --all --graph
 [push]
@@ -25,3 +20,9 @@
 	sort = -committerdate
 [gpg]
 	format = ssh
+[gpg "ssh"]
+	allowedSignersFile = ~/.gitallowedsigners
+# Per-machine: signing key, commit.gpgsign and the SSH rewrite for GitHub.
+# Written by home-manager (nix/home.nix) once a Secretive key exists.
+[include]
+	path = ~/.gitconfig.local
