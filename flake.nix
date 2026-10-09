@@ -42,6 +42,7 @@
       darwinConfigurations = {
         mac = mkMac { user = "guilospanck"; };
         G1459 = mkMac { user = "guilospanck"; };
+        G0840 = mkMac { user = "guilospanck"; };
       };
     };
 }
