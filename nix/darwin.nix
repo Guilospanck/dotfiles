@@ -215,6 +215,16 @@ in
     pmset -b displaysleep 20 sleep 1 >/dev/null 2>&1 || true
     pmset -c displaysleep 10 sleep 0 >/dev/null 2>&1 || true
 
+    # nix-homebrew leaves share/zsh/site-functions/_brew pointing at a
+    # $PREFIX/completions tree that only exists inside brew's store path, so the
+    # symlink dangles and zsh's compinit warns on every shell. Repoint it at the
+    # real completion through the stable Library/Homebrew symlink (which
+    # nix-homebrew updates to the current brew), so it survives version bumps.
+    brewcomp="${config.homebrew.prefix}/Library/Homebrew/../../completions/zsh/_brew"
+    if [ -e "$brewcomp" ]; then
+      ln -sf "$brewcomp" "${config.homebrew.prefix}/share/zsh/site-functions/_brew"
+    fi
+
     ${asUser "/System/Library/PrivateFrameworks/SystemAdministration.framework/Resources/activateSettings -u"} || true
     killall -qu ${user} Finder ControlCenter WindowManager || true
   '';
