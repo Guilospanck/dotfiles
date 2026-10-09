@@ -6,6 +6,7 @@
     "allow": [],
     "defaultMode": "auto"
   },
+  "model": "claude-opus-4-8",
   "hooks": {
     "Notification": [
       {
