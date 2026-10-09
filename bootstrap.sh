@@ -56,6 +56,9 @@ else
   git clone --recurse-submodules "$REPO_URL" "$DOTFILES_DIR"
 fi
 
+# Install repo git hooks (keeps macos/symbolichotkeys.plist in sync on push).
+ln -sf "$DOTFILES_DIR/git-hooks/pre-push" "$DOTFILES_DIR/.git/hooks/pre-push"
+
 # --- 4. Apply the flake -----------------------------------------------------
 log "Applying nix-darwin config .#$FLAKE_HOST (asks for sudo)"
 if command -v darwin-rebuild >/dev/null 2>&1; then
@@ -64,6 +67,13 @@ else
   sudo nix run nix-darwin/master#darwin-rebuild -- switch --flake "$DOTFILES_DIR#$FLAKE_HOST"
 fi
 eval "$(/opt/homebrew/bin/brew shellenv)"
+
+# --- 4b. Keyboard shortcuts (not expressible in nix-darwin) -----------------
+HOTKEYS="$DOTFILES_DIR/macos/symbolichotkeys.plist"
+if [ -f "$HOTKEYS" ]; then
+  log "Restoring keyboard shortcuts from snapshot"
+  defaults import com.apple.symbolichotkeys "$HOTKEYS"
+fi
 
 # --- 5. Things outside Nix/Homebrew -----------------------------------------
 if [ ! -x "$HOME/.cargo/bin/rustup" ]; then

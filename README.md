@@ -14,7 +14,10 @@ curl -fsSL https://raw.githubusercontent.com/Guilospanck/dotfiles/main/bootstrap
 
 `bootstrap.sh` installs the Xcode Command Line Tools and Nix (Determinate Systems
 installer), clones this repo with submodules into `~/repos/MyRepositories/dotfiles`,
-then applies the flake with nix-darwin. It is safe to re-run.
+applies the flake with nix-darwin (trackpad, mouse, scroll direction and speed,
+3-finger drag, tap/right-click, key repeat, dark mode, …), restores keyboard
+shortcuts from `macos/symbolichotkeys.plist`, and installs the git hooks. It is
+safe to re-run. On an already-cloned repo, `just setup` does the same.
 
 | Env var | Default | Meaning |
 | --- | --- | --- |
@@ -31,8 +34,21 @@ GitHub token), put secrets in `~/.zshrc.local`, sign in to apps.
 
 | Command | What it does |
 | --- | --- |
+| `just setup` | One command on an already-cloned repo: switch + restore shortcuts + install hooks |
 | `just switch` | Apply the config: Homebrew packages/apps, macOS defaults, config links |
 | `just update` | Bump flake inputs (`flake.lock`), then switch |
+| `just push [remote] [args]` | Fold any keyboard-shortcut changes into the same push, then push |
+| `just hotkeys-export` | Capture this Mac's keyboard shortcuts into `macos/symbolichotkeys.plist` |
+| `just hotkeys-import` | Restore keyboard shortcuts on a new Mac from that snapshot |
+| `just install-hooks` | Symlink repo git hooks into `.git/hooks` (once per clone; bootstrap does it too) |
+
+Keyboard shortcuts live in `macos/symbolichotkeys.plist`; everything else lives
+in `nix/darwin.nix` under `system.defaults`. To keep the shortcut snapshot in
+sync, use `just push` — it refreshes and commits the plist (if changed) *before*
+pushing, so the update ships in that push. A `pre-push` hook is the safety net
+for a raw `git push`: it does the same refresh + commit, but git has already
+resolved the refs, so that commit lands on your *next* push. Both are macOS-only
+and never block a push.
 
 Nix only sees files tracked by git, so `git add` new files before `just switch`.
 
@@ -44,6 +60,7 @@ Nix only sees files tracked by git, so `git add` new files before `just switch`.
 | `nix/darwin.nix` | System: nix-homebrew, zsh, macOS defaults |
 | `nix/homebrew.nix` | Homebrew taps, formulae and casks. Add a package here, then `just switch` |
 | `nix/home.nix` | home-manager: config links into this repo |
+| `macos/` | macOS state nix-darwin can't express (keyboard-shortcut snapshot) |
 
 `nix/homebrew.nix` uses `cleanup = "none"`, so switching never uninstalls
 anything. Once the list is pruned, set it to `"zap"` to make Homebrew fully

@@ -19,6 +19,9 @@ link-vm-claude:
     ln -sf "{{justfile_directory()}}/claude/vm-claude/vm-claude" "{{bindir}}/vm-claude"
     @echo "linked vm-claude -> {{bindir}}/vm-claude"
 
+# one command to set up this Mac: config + keyboard shortcuts + git hooks
+setup host="mac": (switch host) hotkeys-import install-hooks
+
 # apply the nix-darwin + home-manager config (packages, apps, config links)
 switch host="mac":
     sudo darwin-rebuild switch --flake "{{justfile_directory()}}#{{host}}"
@@ -27,3 +30,24 @@ switch host="mac":
 update host="mac":
     nix flake update --flake "{{justfile_directory()}}"
     just switch {{host}}
+
+# push, folding any macOS keyboard-shortcut changes into the SAME push
+push remote="origin" *args:
+    "{{justfile_directory()}}/git-hooks/sync-hotkeys"
+    git -C "{{justfile_directory()}}" push {{remote}} {{args}}
+
+# symlink repo git hooks into .git/hooks (run once per clone)
+install-hooks:
+    ln -sf "{{justfile_directory()}}/git-hooks/pre-push" "{{justfile_directory()}}/.git/hooks/pre-push"
+    @echo "linked pre-push hook"
+
+# capture this Mac's keyboard shortcuts into the repo (run after changing them)
+hotkeys-export:
+    defaults export com.apple.symbolichotkeys "{{justfile_directory()}}/macos/symbolichotkeys.plist"
+    plutil -convert xml1 "{{justfile_directory()}}/macos/symbolichotkeys.plist"
+    @echo "exported -> macos/symbolichotkeys.plist (git add + commit it)"
+
+# restore keyboard shortcuts on a new Mac from the repo snapshot
+hotkeys-import:
+    defaults import com.apple.symbolichotkeys "{{justfile_directory()}}/macos/symbolichotkeys.plist"
+    @echo "imported. log out/in (or `killall cfprefsd`) for it to take effect"

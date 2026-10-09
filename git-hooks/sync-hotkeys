@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# sync-hotkeys - re-export com.apple.symbolichotkeys and, if it differs from
+# macos/symbolichotkeys.plist, commit the refreshed file. Shared by the
+# pre-push hook (safety net) and `just push` (folds it into the same push).
+#
+# Non-fatal by design: any problem warns and returns 0.
+set -euo pipefail
+
+warn() { printf 'sync-hotkeys: %s\n' "$*" >&2; }
+
+# macOS-only; needs defaults + plutil. Elsewhere (e.g. omarchy) do nothing.
+[ "$(uname -s)" = Darwin ] || exit 0
+command -v defaults >/dev/null 2>&1 || exit 0
+command -v plutil   >/dev/null 2>&1 || exit 0
+
+ROOT="$(git rev-parse --show-toplevel)"
+REL="macos/symbolichotkeys.plist"
+PLIST="$ROOT/$REL"
+
+tmp="$(mktemp)"
+trap 'rm -f "$tmp"' EXIT
+if ! defaults export com.apple.symbolichotkeys "$tmp" 2>/dev/null; then
+  warn "could not export com.apple.symbolichotkeys; skipping"
+  exit 0
+fi
+plutil -convert xml1 "$tmp" >/dev/null 2>&1 || true
+
+# No change -> nothing to do.
+if [ -f "$PLIST" ] && cmp -s "$tmp" "$PLIST"; then
+  exit 0
+fi
+
+mkdir -p "$(dirname "$PLIST")"
+cp "$tmp" "$PLIST"
+
+if ! git -C "$ROOT" symbolic-ref -q HEAD >/dev/null; then
+  warn "detached HEAD; refreshed $REL but did not commit"
+  exit 0
+fi
+
+warn "macOS shortcuts drifted -> refreshing $REL"
+if git -C "$ROOT" commit -q -m "macos: refresh keyboard-shortcut snapshot" -- "$REL"; then
+  warn "committed snapshot refresh"
+else
+  warn "nothing committed (file may already be staged elsewhere)"
+fi
+exit 0
