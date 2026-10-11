@@ -233,7 +233,14 @@ alias tmprune='tmutil thinlocalsnapshots / 999999999999 4'
 # alias for removing docker volumes
 alias dcprune='docker system prune --all --volumes -f && docker volume prune --filter all=1 -f'
 # alias for pruning simulator/XCode things
-alias xcodeprune='rm -rf ~/Library/Developer/Xcode/DerivedData and xcrun simctl delete unavailable'
+function xcodeprune {
+  # wiping these under a live xcodebuild breaks the build
+  if pgrep -x xcodebuild >/dev/null 2>&1; then
+    print -u2 "xcodebuild running, skipped"
+    return 1
+  fi
+  rm -rf ~/Library/Developer/Xcode/DerivedData && xcrun simctl delete unavailable
+}
 # remove old (+15 days) node_modules
 alias nodeprune='cd ~/repos && find . -name node_modules -type d -prune -mtime +15 -print -exec rm -rf {} +'
 # remove old (+15 days) rust target
