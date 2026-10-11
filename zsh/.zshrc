@@ -164,6 +164,11 @@ cleanup-caches() {
     for p in "$@"; do [[ -e $p ]] && _cc_run rm -rf -- "$p"; done
   }
   _cc_has() { command -v "$1" >/dev/null 2>&1 }
+  # true while an xcodebuild is alive; wiping its inputs mid-build breaks tests
+  _cc_building() {
+    pgrep -x xcodebuild >/dev/null 2>&1 || return 1
+    print -P "  %F{yellow}xcodebuild running, skipped:%f $*"
+  }
 
   print -P "%B== Package managers%b"
   _cc_has npm    && _cc_run npm cache clean --force
@@ -174,7 +179,7 @@ cleanup-caches() {
   _cc_has pip3   && _cc_run pip3 cache purge
   _cc_has uv     && _cc_run uv cache clean
   _cc_rm ~/Library/Caches/pypoetry/cache ~/Library/Caches/pypoetry/artifacts
-  _cc_has go     && _cc_run go clean -cache -modcache
+  _cc_has go     && ! _cc_building go clean -cache -modcache && _cc_run go clean -cache -modcache
   _cc_rm ~/.cargo/registry/cache ~/.cargo/registry/src
   _cc_has brew   && _cc_run brew cleanup -s --prune=all
 
@@ -185,8 +190,8 @@ cleanup-caches() {
          ~/Library/Caches/colima ~/Library/Caches/Google
 
   print -P "%B== Xcode%b"
-  _cc_rm ~/Library/Developer/Xcode/DerivedData
-  _cc_has xcrun && _cc_run xcrun simctl delete unavailable
+  _cc_building rm -rf ~/Library/Developer/Xcode/DerivedData || _cc_rm ~/Library/Developer/Xcode/DerivedData
+  _cc_has xcrun && ! _cc_building xcrun simctl delete unavailable && _cc_run xcrun simctl delete unavailable
 
   if (( deep )); then
     print -P "%B== Deep: Docker (images + build cache, volumes kept)%b"
@@ -221,7 +226,7 @@ cleanup-caches() {
       $(( (after - before) / 1048576.0 )) $(( after / 1048576.0 ))
   fi
 
-  unfunction _cc_run _cc_rm _cc_has
+  unfunction _cc_run _cc_rm _cc_has _cc_building
 }
 # cleanup time machine
 alias tmprune='tmutil thinlocalsnapshots / 999999999999 4'
