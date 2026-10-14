@@ -11,12 +11,17 @@ let
   claudeSkills = lib.mapAttrs' (name: _:
     lib.nameValuePair ".claude/skills/${name}" { source = link "claude/skills/${name}"; }
   ) (lib.filterAttrs (_: type: type == "directory") (builtins.readDir ../claude/skills));
+
+  # Keep untracked / package-managed extensions local to each machine.
+  piExtensions = lib.mapAttrs' (name: _:
+    lib.nameValuePair ".pi/agent/extensions/${name}" { source = link "pi/extensions/${name}"; }
+  ) (builtins.readDir ../pi/extensions);
 in
 {
   home.stateVersion = "25.05";
   programs.home-manager.enable = true;
 
-  home.file = claudeSkills // {
+  home.file = claudeSkills // piExtensions // {
     ".zshrc".source = link "zsh/.zshrc";
     ".tmux.conf".source = link "tmux/.tmux.conf";
 
@@ -28,6 +33,8 @@ in
 
     ".claude/settings.json".source = link "claude/settings.json";
     ".claude/hooks".source = link "claude/hooks";
+
+    ".pi/agent/settings.json".source = link "pi/settings.json";
 
     # `docker buildx` / `docker compose` only work as subcommands from here.
     ".docker/cli-plugins/docker-buildx".source =
@@ -62,6 +69,7 @@ in
   # - ~/.gitconfig.local: per-machine signing key, written by gitSigning above.
   # - ~/.config/nvim: a clone of kickstart-modular.nvim, done by bootstrap.sh.
   # - the rest of ~/.claude (credentials, history, sessions, …): PII / secrets.
+  # - the rest of ~/.pi/agent (auth, sessions, trust, install, …): local state.
   # - alacritty: replaced by ghostty; alacritty/ kept in the repo to switch back.
   # - zellij: replaced by tmux; zellij/ kept in the repo to switch back.
 }

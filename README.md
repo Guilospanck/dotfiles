@@ -78,8 +78,10 @@ Missing Gitleaks or scanner errors also block commits; it is installed by
 
 Put shell secrets in `~/.zshrc.local`, which `.zshrc` already sources. Local
 `.zshrc.local`, `.gitconfig.local`, and `.env*` files are ignored and the hook
-rejects them even if force-added. After moving a secret, re-stage the cleaned
-tracked file. The hook also preserves executable bits and the existing
+rejects them even if force-added. The hook also rejects Pi runtime fields
+(`deviceId`, `lastChangelogVersion`) in staged `pi/settings.json` and private Pi
+state files; see [`pi/README.md`](pi/README.md). After moving a secret, re-stage
+the cleaned tracked file. The hook also preserves executable bits and the existing
 pre-push keyboard-shortcut sync.
 
 Rules live in `.gitleaks.toml`; the repository's existing public email identity,
@@ -126,6 +128,11 @@ apply live without a rebuild):
 | `~/.claude/settings.json` | `claude/settings.json` |
 | `~/.claude/hooks` | `claude/hooks/` |
 | `~/.claude/skills/<name>` | `claude/skills/<name>/`, one link per tracked skill |
+| `~/.pi/agent/settings.json` | `pi/settings.json` |
+| `~/.pi/agent/extensions/<name>` | `pi/extensions/<name>`, one link per tracked extension |
+
+See [`pi/README.md`](pi/README.md) for Pi setup and privacy notes. Pi credentials,
+sessions, and other machine-local state are not linked or tracked.
 
 An existing real file at a target is moved to `<target>.hm-bak` on the first switch.
 

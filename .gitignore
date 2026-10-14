@@ -5,3 +5,10 @@
 .gitconfig.local
 .env
 .env.*
+
+# Pi project-local state and accidental copies of its agent directory.
+/.pi/
+/pi/*
+!/pi/README.md
+!/pi/settings.json
+!/pi/extensions/
