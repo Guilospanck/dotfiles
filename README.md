@@ -54,7 +54,7 @@ What no script can do:
 | `just push [remote] [args]` | Fold any keyboard-shortcut changes into the same push, then push |
 | `just hotkeys-export` | Capture this Mac's keyboard shortcuts into `macos/symbolichotkeys.plist` |
 | `just hotkeys-import` | Restore keyboard shortcuts on a new Mac from that snapshot |
-| `just install-hooks` | Symlink repo git hooks into `.git/hooks` (once per clone; bootstrap does it too) |
+| `just install-hooks` | Enable tracked pre-commit + pre-push hooks (once per clone; bootstrap does it too) |
 
 Keyboard shortcuts live in `macos/symbolichotkeys.plist`, which every
 `just switch` re-applies; everything else lives in `nix/darwin.nix` (macOS
@@ -66,6 +66,31 @@ resolved the refs, so that commit lands on your *next* push. Both are macOS-only
 and never block a push.
 
 Nix only sees files tracked by git, so `git add` new files before `just switch`.
+
+### Commit privacy guard
+
+`just install-hooks` sets this clone's `core.hooksPath` to `.githooks`.
+Before every commit, Gitleaks scans the **entire staged snapshot** (not unstaged
+edits or untracked files), blocking detected secrets, literal credential
+assignments, emails, US SSNs, and labeled phone numbers. Output is redacted.
+Missing Gitleaks or scanner errors also block commits; it is installed by
+`just switch` via `nix/homebrew.nix`.
+
+Put shell secrets in `~/.zshrc.local`, which `.zshrc` already sources. Local
+`.zshrc.local`, `.gitconfig.local`, and `.env*` files are ignored and the hook
+rejects them even if force-added. After moving a secret, re-stage the cleaned
+tracked file. The hook also preserves executable bits and the existing
+pre-push keyboard-shortcut sync.
+
+Rules live in `.gitleaks.toml`; the repository's existing public email identity,
+Secretive key labels, example-domain emails, and GNOME extension IDs are
+explicit exceptions. Review any new exceptions carefully—never allowlist a real
+credential. You can run `git-hooks/check-secrets` manually after staging files.
+
+This is a heuristic safety net, not proof that a file contains no PII: it cannot
+reliably identify arbitrary names, addresses, or every secret format. Submodule
+contents/history are not scanned; install guards in those repositories too.
+Local Git hooks can be bypassed (e.g. `--no-verify`), so do not bypass this one.
 
 ### Layout
 

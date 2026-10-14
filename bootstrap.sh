@@ -65,8 +65,8 @@ else
   git clone --recurse-submodules "$REPO_URL" "$DOTFILES_DIR"
 fi
 
-# Install repo git hooks (keeps macos/symbolichotkeys.plist in sync on push).
-ln -sf "$DOTFILES_DIR/git-hooks/pre-push" "$DOTFILES_DIR/.git/hooks/pre-push"
+# Enable secret/PII checks on commit and keyboard-shortcut sync on push.
+sh "$DOTFILES_DIR/.githooks/install.sh"
 
 # --- 4. Apply the flake -----------------------------------------------------
 log "Applying nix-darwin config .#$FLAKE_HOST (asks for sudo)"

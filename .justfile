@@ -36,10 +36,9 @@ push remote="origin" *args:
     "{{justfile_directory()}}/git-hooks/sync-hotkeys"
     git -C "{{justfile_directory()}}" push {{remote}} {{args}}
 
-# symlink repo git hooks into .git/hooks (run once per clone)
+# enable tracked pre-commit and pre-push hooks (run once per clone)
 install-hooks:
-    ln -sf "{{justfile_directory()}}/git-hooks/pre-push" "{{justfile_directory()}}/.git/hooks/pre-push"
-    @echo "linked pre-push hook"
+    sh "{{justfile_directory()}}/.githooks/install.sh"
 
 # capture this Mac's keyboard shortcuts into the repo (run after changing them)
 hotkeys-export:

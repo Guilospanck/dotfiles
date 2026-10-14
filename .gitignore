@@ -1,1 +1,7 @@
 .claude
+
+# Machine-local credentials/config must never be tracked.
+.zshrc.local
+.gitconfig.local
+.env
+.env.*

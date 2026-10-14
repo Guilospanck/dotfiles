@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# pre-commit — keep the executable bit on tracked scripts.
+# pre-commit — preserve executable bits, then block secrets and common PII.
 #
 # Editing a repo file from inside a VM that mounts this repo (e.g. developing
 # claude/vm-claude/vm-claude with vm-claude itself) rewrites the file through the mount
@@ -30,4 +30,4 @@ while IFS=$'\t' read -r meta path; do
 done < <(git diff --cached --raw)
 
 [ "$restored" = "1" ] && echo "pre-commit: exec bits fixed and re-staged." >&2
-exit 0
+exec "$(git rev-parse --show-toplevel)/git-hooks/check-secrets"
