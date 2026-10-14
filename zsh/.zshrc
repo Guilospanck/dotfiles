@@ -246,5 +246,9 @@ alias nodeprune='cd ~/repos && find . -name node_modules -type d -prune -mtime +
 # remove old (+15 days) rust target
 alias rustprune='cd ~/repos && find . -name target -type d -prune -mtime +15 -exec test -f {}/../Cargo.toml \; -print -exec rm -rf {} +'
 
+# Added by Antigravity CLI installer
+export PATH="$HOME/.local/bin:$PATH"
+export PATH="$(brew --prefix curl)/bin:$PATH"
+
 # Machine-local config and secrets (not tracked)
 [ -f ~/.zshrc.local ] && source ~/.zshrc.local
