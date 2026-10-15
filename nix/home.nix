@@ -49,6 +49,15 @@ in
   xdg.configFile."workmux/config.yaml".source = link "workmux/config.yaml";
   xdg.configFile."odin/odinfmt.json".source = link "odin/odinfmt.json";
 
+  # Upstream distributes microsandbox through its installer, outside Homebrew.
+  # Activation has a minimal PATH; expose curl and the tools used by the installer.
+  home.activation.microsandbox = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    if ! PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH" \
+      /bin/bash "${dotfilesDir}/claude/install-microsandbox.sh"; then
+      echo "warning: microsandbox installation failed; retry with just install-microsandbox" >&2
+    fi
+  '';
+
   # Commit signing uses a Secretive key, which is bound to this Mac's Secure
   # Enclave and so cannot live in the repo. Once the key exists, write the
   # machine-local half of the git config (included from git/.gitconfig).

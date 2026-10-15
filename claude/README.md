@@ -19,8 +19,20 @@ git submodule update --init claude/vm-claude
 ```
 
 Install it onto your `PATH` with `just install-vm-claude` (copy) or
-`just link-vm-claude` (symlink that tracks submodule edits). Full documentation
-is in `claude/vm-claude/README.md`.
+`just link-vm-claude` (symlink that tracks submodule edits). Both first ensure
+microsandbox (`msb`) is installed, using `claude/install-microsandbox.sh`, which
+runs the official installer only when `msb` is missing:
+
+```bash
+curl -fsSL https://install.microsandbox.dev | sh
+```
+
+You can also run `just install-microsandbox` on its own. Home-manager activation
+in `nix/home.nix` ensures it is installed on every `just switch` (warning without
+blocking the switch on failure). `bootstrap.sh` installs it too, and `just setup`
+installs it and links the wrapper. The installer checks
+`~/.local/bin` as well as `PATH`; `zsh/.zshrc` already includes that directory.
+Full wrapper documentation is in `claude/vm-claude/README.md`.
 
 The vendored config below mirrors `~/.claude`, so this directory can drive
 `vm-claude` directly:

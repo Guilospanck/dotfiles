@@ -8,19 +8,23 @@ default:
     @just --list
 
 # install (copy) vm-claude into {{bindir}}; re-run after editing the script
-install-vm-claude:
+install-vm-claude: install-microsandbox
     install -d "{{bindir}}"
     install -m 755 "{{justfile_directory()}}/claude/vm-claude/vm-claude" "{{bindir}}/vm-claude"
     @echo "installed vm-claude -> {{bindir}}/vm-claude"
 
 # symlink vm-claude into {{bindir}} so it tracks repo edits live (no re-copy)
-link-vm-claude:
+link-vm-claude: install-microsandbox
     install -d "{{bindir}}"
     ln -sf "{{justfile_directory()}}/claude/vm-claude/vm-claude" "{{bindir}}/vm-claude"
     @echo "linked vm-claude -> {{bindir}}/vm-claude"
 
-# one command to set up this Mac: config + keyboard shortcuts + git hooks
-setup host="mac": (switch host) hotkeys-import install-hooks
+# install the microsandbox CLI required by vm-claude (skips if already present)
+install-microsandbox:
+    bash "{{justfile_directory()}}/claude/install-microsandbox.sh"
+
+# one command to set up this Mac: config + keyboard shortcuts + git hooks + vm-claude
+setup host="mac": (switch host) hotkeys-import install-hooks link-vm-claude
 
 # apply the nix-darwin + home-manager config (packages, apps, config links)
 switch host="mac":

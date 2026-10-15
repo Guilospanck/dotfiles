@@ -117,7 +117,10 @@ if ! command -v claude >/dev/null 2>&1; then
   try bash -c 'curl -fsSL https://claude.ai/install.sh | bash'
 fi
 
-# vm-claude from the submodule; it installs `msb` (microsandbox) on first run.
+# microsandbox is distributed via its upstream installer, outside Homebrew.
+try bash "$DOTFILES_DIR/claude/install-microsandbox.sh"
+
+# vm-claude from the submodule.
 mkdir -p "$HOME/.local/bin"
 ln -sf "$DOTFILES_DIR/claude/vm-claude/vm-claude" "$HOME/.local/bin/vm-claude"
 

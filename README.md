@@ -17,7 +17,8 @@ installer), clones this repo with submodules into `~/repos/MyRepositories/dotfil
 applies the flake with nix-darwin (trackpad, mouse, keyboard remap and
 shortcuts, Dock, Finder, menu bar, power, app preferences, login apps, …), and
 installs the git hooks. It is safe to re-run. On an already-cloned repo,
-`just setup` does the same.
+`just setup` applies the config, restores shortcuts, installs hooks, and installs
+microsandbox and links `vm-claude` (the other extra installers below are bootstrap-only).
 
 | Env var | Default | Meaning |
 | --- | --- | --- |
@@ -26,9 +27,12 @@ installs the git hooks. It is safe to re-run. On an already-cloned repo,
 
 Before the flake it installs Rosetta. After it, it installs what Homebrew does
 not carry: Rust via rustup (plus components and targets), Node LTS via nvm,
-Claude Code, graphify, the marketplace Claude skills, and it links `vm-claude`
+Claude Code, microsandbox (`msb`, via its official installer), graphify, the
+marketplace Claude skills, and it links `vm-claude`
 and clones the nvim config (`kickstart-modular.nvim`) into `~/.config/nvim` if
-missing. These extra steps warn and continue if one fails.
+missing. These extra steps warn and continue if one fails. Microsandbox is also
+ensured by home-manager activation (`nix/home.nix`) on every `just switch`;
+installation failures warn without blocking the switch.
 
 What no script can do:
 
@@ -48,8 +52,10 @@ What no script can do:
 
 | Command | What it does |
 | --- | --- |
-| `just setup` | One command on an already-cloned repo: switch + restore shortcuts + install hooks |
-| `just switch` | Apply the config: Homebrew packages/apps, macOS defaults, config links |
+| `just setup` | Switch + restore shortcuts + install hooks + install microsandbox and link `vm-claude` |
+| `just install-microsandbox` | Install the `msb` CLI using the official installer (skips if present) |
+| `just install-vm-claude` / `just link-vm-claude` | Ensure microsandbox is installed, then copy / symlink the wrapper onto `PATH` |
+| `just switch` | Apply the config: Homebrew packages/apps, macOS defaults, config links; ensure microsandbox is installed |
 | `just update` | Bump flake inputs (`flake.lock`), then switch |
 | `just push [remote] [args]` | Fold any keyboard-shortcut changes into the same push, then push |
 | `just hotkeys-export` | Capture this Mac's keyboard shortcuts into `macos/symbolichotkeys.plist` |
