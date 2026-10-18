@@ -21,6 +21,38 @@
 - When briefing a subagent, tell it to stop its own background shells before
   it reports.
 
+## Token economy and model selection
+
+Spend the fewest tokens that still get the task right: use the cheapest model
+that is capable of the task, and keep contexts small.
+
+When dispatching a subagent (Agent tool, workflow, workmux agent), always set
+the model explicitly:
+
+- **Haiku:** mechanical work whose exact result is already specified — renames,
+  constant or config edits, adding documented entries, transcribing complete
+  code from a plan, file searches, scoped re-reviews of small fix diffs
+  (under ~100 lines).
+- **Sonnet (the default):** ordinary implementation from a written plan or
+  spec, test writing, debugging with a clear reproduction, per-task code
+  reviews, planning a well-scoped feature, orchestrating other agents.
+- **Opus:** security-sensitive or concurrency/state-machine-critical code and
+  its reviews, architecture and design decisions, whole-branch or milestone
+  reviews, and any task a Sonnet agent has already failed twice.
+- **Fable** (most expensive): only when the user asks for it.
+
+Keep contexts small:
+
+- Give subagents file paths, not pasted content. Have them write full reports
+  to a file and return at most ~10 lines (status, commit, test counts,
+  concerns).
+- Do not read whole diffs or logs yourself when a reviewer or a filtered
+  command (`grep`, `tail`) can answer.
+- Record progress in a file (ledger) so `/compact` or `/clear` loses nothing,
+  and compact long-running agent sessions periodically.
+- Prefer fewer review rounds: fix rounds only for Critical/Important findings;
+  batch minor ones.
+
 # graphify
 - **graphify** (`~/.claude/skills/graphify/SKILL.md`) - any input to knowledge graph. Trigger: `/graphify`
 When the user types `/graphify`, use the installed graphify skill or instructions before doing anything else.
