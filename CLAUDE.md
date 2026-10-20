@@ -32,6 +32,9 @@ afterward. New packages go in `nix/homebrew.nix`, not in ad-hoc install scripts.
   change it in its own repo, not here.
 - `claude/vm-claude` is a **git submodule** (<https://github.com/Guilospanck/vm-claude.git>)
   holding the `vm-claude` microVM wrapper — change it in its own repo, not here.
+- `openshell` is a **git submodule** (<https://github.com/Guilospanck/oh-my-openshell.git>)
+  holding the OpenShell gateway config, providers, images and TUI — change it in
+  its own repo, not here.
 - `claude/` otherwise holds a vendored, PII-free snapshot of `~/.claude`
   (`settings.json`, `hooks/`, `skills/`). See `claude/README.md`.
 - Configs are consumed by symlinking, not copying — home-manager creates the

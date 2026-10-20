@@ -43,11 +43,29 @@ in
       config.lib.file.mkOutOfStoreSymlink "/opt/homebrew/opt/docker-compose/bin/docker-compose";
   };
 
+  # Link only portable config; gateway credentials/state stay machine-local.
+  # gateway.env holds non-secret runtime env only; the pre-commit scan covers it.
+  xdg.configFile."openshell/.justfile".source = link "openshell/.justfile";
+  # gateway.toml is copied, not linked: the gateway refuses a symlinked config.
+  xdg.configFile."openshell/gateway.env".source = link "openshell/gateway.env";
+  xdg.configFile."openshell/osh".source = link "openshell/osh";
+  xdg.configFile."openshell/gateway-docker.toml".source = link "openshell/gateway-docker.toml";
+  xdg.configFile."openshell/gateway-docker-service".source = link "openshell/gateway-docker-service";
+  xdg.configFile."openshell/providers".source = link "openshell/providers";
+  xdg.configFile."openshell/images".source = link "openshell/images";
+
   xdg.configFile."ghostty".source = link "ghostty";
   xdg.configFile."starship.toml".source = link "starship/starship.toml";
   xdg.configFile."consult-llm/config.yaml".source = link "consult-llm/config.yaml";
   xdg.configFile."workmux/config.yaml".source = link "workmux/config.yaml";
   xdg.configFile."odin/odinfmt.json".source = link "odin/odinfmt.json";
+
+  home.activation.openshellGatewayConfig = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    dest="''${XDG_CONFIG_HOME:-$HOME/.config}/openshell"
+    mkdir -p "$dest"
+    rm -f "$dest/gateway.toml"
+    install -m 644 "${dotfilesDir}/openshell/gateway.toml" "$dest/gateway.toml"
+  '';
 
   # Upstream distributes microsandbox through its installer, outside Homebrew.
   # Activation has a minimal PATH; expose curl and the tools used by the installer.

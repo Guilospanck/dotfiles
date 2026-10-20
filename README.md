@@ -124,6 +124,8 @@ apply live without a rebuild):
 | `~/.zshrc` | `zsh/.zshrc` |
 | `~/.tmux.conf` | `tmux/.tmux.conf` |
 | `~/.config/ghostty` | `ghostty/` |
+| `~/.config/openshell/{.justfile,providers,images,scripts}` | `openshell/` (same names; git submodule, [oh-my-openshell](https://github.com/Guilospanck/oh-my-openshell)) |
+| `~/.config/openshell/gateway.toml` | copy of `openshell/gateway.toml`, written on switch (the gateway rejects symlinked configs; rerun `just switch` and restart the gateway after editing) |
 | `~/.gitconfig`, `~/.gitignore`, `~/.gitallowedsigners` | `git/` (same names) |
 | `~/.config/starship.toml` | `starship/starship.toml` |
 | `~/.config/consult-llm/config.yaml` | `consult-llm/config.yaml` |
@@ -139,6 +141,11 @@ apply live without a rebuild):
 
 See [`pi/README.md`](pi/README.md) for Pi setup and privacy notes. Pi credentials,
 sessions, and other machine-local state are not linked or tracked.
+
+OpenShell's `active_gateway` and `gateways/` stay machine-local; its portable
+config, `gateway.env`, provider profiles, and image definitions are linked.
+`gateway.env` must hold only non-secret runtime env (it is scanned by the
+pre-commit secret check like every other tracked file).
 
 An existing real file at a target is moved to `<target>.hm-bak` on the first switch.
 

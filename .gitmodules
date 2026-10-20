@@ -6,3 +6,7 @@
 	path = claude/vm-claude
 	url = https://github.com/Guilospanck/vm-claude.git
 	branch = main
+[submodule "openshell"]
+	path = openshell
+	url = https://github.com/Guilospanck/oh-my-openshell.git
+	branch = main
