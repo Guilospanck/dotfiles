@@ -16,6 +16,10 @@
   actually alive: background shells (including idle `sleep`/`until` polling
   loops), containers, and subagents and the shells they started. Kill anything
   that is idle or orphaned and say what was killed.
+- Checking only containers, subagents and test runs is not enough; I have
+  missed orphaned polling loops this way twice. Always run
+  `ps -axo pid,etime,command | grep -E 'sleep|until |while |tail -f|watch ' | grep -v grep`
+  plus `jobs`, and report the result, before claiming nothing is running.
 - Give every polling loop a timeout or an exit condition that is certain to
   happen; do not wait on a marker that an abandoned run will never write.
 - When briefing a subagent, tell it to stop its own background shells before

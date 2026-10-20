@@ -83,6 +83,16 @@
             "timeout": 5
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/guilospanck/.local/share/caveman-blocks/bin/caveman-blocks hook --harness claude",
+            "timeout": 5
+          }
+        ]
       }
     ]
   },
