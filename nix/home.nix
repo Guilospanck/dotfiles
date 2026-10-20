@@ -51,8 +51,12 @@ in
   xdg.configFile."openshell/osh".source = link "openshell/osh";
   xdg.configFile."openshell/gateway-docker.toml".source = link "openshell/gateway-docker.toml";
   xdg.configFile."openshell/gateway-docker-service".source = link "openshell/gateway-docker-service";
-  xdg.configFile."openshell/providers".source = link "openshell/providers";
-  xdg.configFile."openshell/images".source = link "openshell/images";
+  # providers/images link to the standalone oh-my-openshell checkout (sibling of
+  # this repo), not the submodule clone, so edits land where they get committed.
+  xdg.configFile."openshell/providers".source =
+    config.lib.file.mkOutOfStoreSymlink "${dotfilesDir}/../oh-my-openshell/providers";
+  xdg.configFile."openshell/images".source =
+    config.lib.file.mkOutOfStoreSymlink "${dotfilesDir}/../oh-my-openshell/images";
 
   xdg.configFile."ghostty".source = link "ghostty";
   xdg.configFile."starship.toml".source = link "starship/starship.toml";
