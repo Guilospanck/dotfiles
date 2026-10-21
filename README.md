@@ -124,7 +124,8 @@ apply live without a rebuild):
 | `~/.zshrc` | `zsh/.zshrc` |
 | `~/.tmux.conf` | `tmux/.tmux.conf` |
 | `~/.config/ghostty` | `ghostty/` |
-| `~/.config/openshell/{.justfile,providers,images,scripts}` | `openshell/` (same names; git submodule, [oh-my-openshell](https://github.com/Guilospanck/oh-my-openshell)) |
+| `~/.config/openshell/{.justfile,osh,gateway*}` | `openshell/` (same names; git submodule, [oh-my-openshell](https://github.com/Guilospanck/oh-my-openshell)) |
+| `~/.config/openshell/{providers,images}` | `../oh-my-openshell/` (standalone checkout beside this repo, cloned by `bootstrap.sh`, so edits are committed there) |
 | `~/.config/openshell/gateway.toml` | copy of `openshell/gateway.toml`, written on switch (the gateway rejects symlinked configs; rerun `just switch` and restart the gateway after editing) |
 | `~/.gitconfig`, `~/.gitignore`, `~/.gitallowedsigners` | `git/` (same names) |
 | `~/.config/starship.toml` | `starship/starship.toml` |

@@ -65,6 +65,16 @@ else
   git clone --recurse-submodules "$REPO_URL" "$DOTFILES_DIR"
 fi
 
+# providers/ and images/ in ~/.config/openshell link here (see nix/home.nix),
+# so edits are committed from a standalone checkout, not the submodule clone.
+OMO_DIR="$(dirname "$DOTFILES_DIR")/oh-my-openshell"
+if [ -d "$OMO_DIR/.git" ]; then
+  git -C "$OMO_DIR" pull --ff-only
+else
+  log "Cloning oh-my-openshell into $OMO_DIR"
+  git clone "https://github.com/Guilospanck/oh-my-openshell.git" "$OMO_DIR"
+fi
+
 # Enable secret/PII checks on commit and keyboard-shortcut sync on push.
 sh "$DOTFILES_DIR/.githooks/install.sh"
 
