@@ -13,4 +13,3 @@ files:
     - "**/*.env"
   symlink:
     - "node_modules"
-    - .consult-llm.local.yaml

@@ -60,7 +60,6 @@ in
 
   xdg.configFile."ghostty".source = link "ghostty";
   xdg.configFile."starship.toml".source = link "starship/starship.toml";
-  xdg.configFile."consult-llm/config.yaml".source = link "consult-llm/config.yaml";
   xdg.configFile."workmux/config.yaml".source = link "workmux/config.yaml";
   xdg.configFile."odin/odinfmt.json".source = link "odin/odinfmt.json";
 

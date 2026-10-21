@@ -130,7 +130,6 @@ apply live without a rebuild):
 | `~/.config/openshell/gateway.toml` | copy of `openshell/gateway.toml`, written on switch (the gateway rejects symlinked configs; rerun `just switch` and restart the gateway after editing) |
 | `~/.gitconfig`, `~/.gitignore`, `~/.gitallowedsigners` | `git/` (same names) |
 | `~/.config/starship.toml` | `starship/starship.toml` |
-| `~/.config/consult-llm/config.yaml` | `consult-llm/config.yaml` |
 | `~/.config/workmux/config.yaml` | `workmux/config.yaml` |
 | `~/.config/odin/odinfmt.json` | `odin/odinfmt.json` |
 | `~/.docker/cli-plugins/docker-{buildx,compose}` | the Homebrew binaries |

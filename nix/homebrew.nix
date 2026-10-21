@@ -13,7 +13,6 @@
 
     taps = [
       "guilospanck/tap"
-      "raine/consult-llm"
       "raine/workmux"
       # Hosted on GitLab; a bare name makes brew clone from GitHub, where it 404s.
       {
@@ -36,7 +35,6 @@
       "cargo-watch"
       "cmake"
       "colima"
-      "raine/consult-llm/consult-llm"
       "container"
       "coreutils"
       "curl"

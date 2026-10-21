@@ -73,7 +73,6 @@ committing: no tokens in `env`, no `/Users/<name>/…` paths.
 | `settings.json` | Global Claude config: effort, hook wiring, statusline, enabled plugins, permissions |
 | `hooks/caveman-session.sh` | Injects the caveman session directive; writes the on/off marker |
 | `hooks/statusline-caveman.sh` | Status line: caveman flag + model + cwd |
-| `hooks/consult-llm-monitor.sh` | Opens `consult-llm-monitor` in a tmux split when Claude runs `consult-llm` |
 | `skills/` | 13 personal skills (`pre-pr`, `workmux`, `rebase`, …) |
 
 Absolute host paths in `settings.json` are written as `$HOME/.claude/…`. Claude

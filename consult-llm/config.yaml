@@ -1,7 +1,0 @@
-openai:
-  backend: codex-cli
-anthropic:
-  backend: claude-cli
-extra_models:
-- gpt-6.1-sol
-default_model: gpt-6.1-sol
