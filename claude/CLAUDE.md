@@ -60,3 +60,12 @@ Keep contexts small:
 # graphify
 - **graphify** (`~/.claude/skills/graphify/SKILL.md`) - any input to knowledge graph. Trigger: `/graphify`
 When the user types `/graphify`, use the installed graphify skill or instructions before doing anything else.
+
+## Evidence before advice
+
+- Read the actual code in every library and service involved before proposing
+  any idea or design. Comments, docs, ADRs and recollection are not evidence.
+- Do the full reading first. Never answer with "unverified", "did not read",
+  "from memory" or "tell me and I will read it"; keep reading until the code
+  answers the question. Re-check line references against the current HEAD,
+  because branches get rebased mid-session.
