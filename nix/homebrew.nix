@@ -120,7 +120,6 @@
       "notion"
       "raycast"
       "rectangle"
-      "secretive"
       "shodan-public/shodan/shodan-terminal"
       "visual-studio-code"
       "zen"

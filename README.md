@@ -38,8 +38,9 @@ What no script can do:
 
 - **Mission Control desktops**: add desktops until there are 4. `Cmd+1..4`
   switch to them, but macOS has no way to create desktops from a script.
-- **Secretive key**: it lives in the Secure Enclave, so each Mac needs its own.
-  Create it in Secretive, add it to GitHub (authentication and signing) and to
+- **SSH key**: the private key stays out of the repo, so each Mac needs its own.
+  Create `~/.ssh/id_ed25519` with `ssh-keygen -t ed25519`, add it to GitHub
+  (authentication and signing) and to
   `git/.gitallowedsigners`, then re-run `just switch`: it writes
   `~/.gitconfig.local` (signing key, `commit.gpgsign`, SSH rewrite for GitHub).
 - **Privacy permissions**: Accessibility for Rectangle, Raycast and Clipy,
@@ -91,7 +92,7 @@ the cleaned tracked file. The hook also preserves executable bits and the existi
 pre-push keyboard-shortcut sync.
 
 Rules live in `.gitleaks.toml`; the repository's existing public email identity,
-Secretive key labels, example-domain emails, and GNOME extension IDs are
+example-domain emails, and GNOME extension IDs are
 explicit exceptions. Review any new exceptions carefully—never allowlist a real
 credential. You can run `git-hooks/check-secrets` manually after staging files.
 

@@ -80,18 +80,17 @@ in
     fi
   '';
 
-  # Commit signing uses a Secretive key, which is bound to this Mac's Secure
-  # Enclave and so cannot live in the repo. Once the key exists, write the
-  # machine-local half of the git config (included from git/.gitconfig).
+  # Commit signing uses ~/.ssh/id_ed25519, a private key that cannot live in
+  # the repo. Once the key exists, write the machine-local half of the git
+  # config (included from git/.gitconfig).
   home.activation.gitSigning = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-    keys="$HOME/Library/Containers/com.maxgoedjen.Secretive.SecretAgent/Data/PublicKeys"
+    key="$HOME/.ssh/id_ed25519.pub"
     if [ ! -e "$HOME/.gitconfig.local" ]; then
-      key=$(ls "$keys"/*.pub 2>/dev/null | head -n 1 || true)
-      if [ -n "$key" ]; then
+      if [ -e "$key" ]; then
         printf '[user]\n\tsigningkey = %s\n[commit]\n\tgpgsign = true\n[url "git@github.com:"]\n\tinsteadOf = https://github.com/\n' "$key" > "$HOME/.gitconfig.local"
         echo "wrote ~/.gitconfig.local (signing key: $key)"
       else
-        echo "no Secretive key yet: create one in Secretive, add it to GitHub, then re-run the switch"
+        echo "no ~/.ssh/id_ed25519 yet: run ssh-keygen -t ed25519, add it to GitHub, then re-run the switch"
       fi
     fi
   '';

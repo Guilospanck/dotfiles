@@ -152,7 +152,7 @@ fi
 
 log "Done. What a script cannot do:
   - Mission Control: add desktops until there are 4 (Cmd+1..4 switch to them)
-  - Secretive: create a key, add it to GitHub (auth + signing), then re-run
+  - SSH key: ssh-keygen -t ed25519, add it to GitHub (auth + signing), re-run
     this script; it writes ~/.gitconfig.local with the signing key
   - Approve the permission prompts (Accessibility for Rectangle, Raycast,
     Clipy; Input Monitoring for KeyCastr) and the default-browser dialog

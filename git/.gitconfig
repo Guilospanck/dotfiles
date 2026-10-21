@@ -23,6 +23,6 @@
 [gpg "ssh"]
 	allowedSignersFile = ~/.gitallowedsigners
 # Per-machine: signing key, commit.gpgsign and the SSH rewrite for GitHub.
-# Written by home-manager (nix/home.nix) once a Secretive key exists.
+# Written by home-manager (nix/home.nix) once ~/.ssh/id_ed25519 exists.
 [include]
 	path = ~/.gitconfig.local

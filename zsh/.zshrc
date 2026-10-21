@@ -109,9 +109,6 @@ export PATH="$BUN_INSTALL/bin:$PATH"
 export DOTNET_ROOT=/usr/local/share/dotnet
 export PATH=$PATH:$DOTNET_ROOT
 
-# Secretive
-export SSH_AUTH_SOCK=$HOME/Library/Containers/com.maxgoedjen.Secretive.SecretAgent/Data/socket.ssh
-
 # Prevent telemetry (when true) on Github CLI - and maybe other tools
 # NOTE: if this is 'true', claude /remote-control won't work.
 export DO_NOT_TRACK=false
