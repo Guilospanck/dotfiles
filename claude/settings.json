@@ -102,21 +102,12 @@
   },
   "enabledPlugins": {
     "clangd-lsp@claude-plugins-official": true,
-    "frontend-design@claude-plugins-official": true,
     "gopls-lsp@claude-plugins-official": true,
-    "i-have-adhd@i-have-adhd": true,
     "rust-analyzer-lsp@claude-plugins-official": true,
     "superpowers@claude-plugins-official": true,
     "swift-lsp@claude-plugins-official": true
   },
-  "extraKnownMarketplaces": {
-    "i-have-adhd": {
-      "source": {
-        "source": "github",
-        "repo": "ayghri/i-have-adhd"
-      }
-    }
-  },
+  "extraKnownMarketplaces": {},
   "effortLevel": "high",
   "voice": {
     "enabled": true,

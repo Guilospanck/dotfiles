@@ -139,10 +139,10 @@ if command -v uv >/dev/null 2>&1 && ! command -v graphify >/dev/null 2>&1; then
   try bash -c 'uv tool install graphifyy && "$HOME/.local/bin/graphify" install'
 fi
 
-# Marketplace skills (caveman, tdd, ...): not vendored in claude/skills.
+# Marketplace skills (caveman): not vendored in claude/skills.
 if [ ! -e "$HOME/.claude/skills/caveman" ] && command -v npx >/dev/null 2>&1; then
   log "Installing marketplace skills"
-  try npx -y skills add mattpocock/skills -g -a claude-code -y
+  try npx -y skills add JuliusBrussee/caveman -g -a claude-code -y
 fi
 
 if command -v go >/dev/null 2>&1 && [ ! -x "$HOME/golang/bin/scaffolder" ]; then

@@ -74,7 +74,7 @@ committing: no tokens in `env`, no `/Users/<name>/…` paths.
 | `hooks/caveman-session.sh` | Injects the caveman session directive; writes the on/off marker |
 | `hooks/statusline-caveman.sh` | Status line: caveman flag + model + cwd |
 | `hooks/consult-llm-monitor.sh` | Opens `consult-llm-monitor` in a tmux split when Claude runs `consult-llm` |
-| `skills/` | 23 personal skills (`collab`, `consult`, `workshop`, `pre-pr`, …) |
+| `skills/` | 19 personal skills (`collab`, `consult`, `debate`, `pre-pr`, …) |
 
 Absolute host paths in `settings.json` are written as `$HOME/.claude/…`. Claude
 Code runs hook and status-line commands through a shell (shell form — no `args`),
@@ -89,7 +89,7 @@ so `$HOME` expands at run time. Keep new hooks in shell form for this to hold.
   `skills/graphify/` (installed by graphify itself), and
   `skills/update-llm-companion-envs/` (specific to a work repo).
 - **Marketplace / plugin skills** — the skill entries in `~/.claude/skills` that
-  are symlinks into `~/.agents` (`caveman`, `tdd`, `diagnose`, `write-a-skill`, …)
+  are symlinks into `~/.agents` (`caveman`, the OpenShell skills, `security-audit`)
   come from a plugin marketplace and are managed there, so they're not vendored.
   Note `settings.json`'s caveman hook invokes the `caveman` skill, which is one of
   these — install that marketplace for caveman mode to work end to end.
