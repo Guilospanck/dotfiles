@@ -10,6 +10,11 @@ export LIBRARY_PATH="$LIBRARY_PATH:/opt/homebrew/lib"
 
 export EDITOR=nvim
 
+# nix-homebrew owns /opt/homebrew (not a git repo), so brew's auto-update git
+# calls fail with "not in a git directory". Taps update through `just switch`.
+export HOMEBREW_NO_AUTO_UPDATE=1
+export HOMEBREW_NO_ENV_HINTS=1
+
 autoload edit-command-line
 zle -N edit-command-line
 bindkey '^Xe' edit-command-line
