@@ -10,6 +10,16 @@
   command, a snippet), also put it on the macOS clipboard with `pbcopy` and say
   that it is there. Still show the text in the reply.
 
+## Hooks and safety checks
+
+- Never bypass a hook or safety check: no `--no-verify`, no `--no-gpg-sign`,
+  no disabling or editing the hook, no skipping a scanner. They exist for
+  security and must be respected. When one blocks a commit or action, fix the
+  cause (remove the flagged content, change the code) and retry. If it looks
+  like a false positive, say so and ask me; do not work around it.
+- This holds for scripts and recipes you write too: do not add flags that skip
+  hooks, and do not put content in them that a scanner is known to flag.
+
 ## Background work
 
 - Never leave background shells, containers, or subagents running once their
