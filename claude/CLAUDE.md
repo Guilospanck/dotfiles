@@ -6,6 +6,9 @@
   in a conversation (e.g. "PRM (Protected Resource Metadata)"). Use the short
   form only after that. This applies in terse/caveman mode too. Well-known
   basics (API, URL, JSON, HTTP) are exempt.
+- Whenever I give you text you are meant to copy (a PR comment, a message, a
+  command, a snippet), also put it on the macOS clipboard with `pbcopy` and say
+  that it is there. Still show the text in the reply.
 
 ## Background work
 
