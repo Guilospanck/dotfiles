@@ -225,6 +225,17 @@ in
       ln -sf "$brewcomp" "${config.homebrew.prefix}/share/zsh/site-functions/_brew"
     fi
 
+    # nix-homebrew's fake $HOMEBREW_REPOSITORY has an empty .git/HEAD, so git
+    # rejects it and every brew `git config` write (analytics, donation and
+    # completions notices) dies with "fatal: not in a git directory" -- that
+    # is what crashes `brew update`. Give it a valid HEAD, objects/ and refs/.
+    brewrepo="${config.homebrew.prefix}/Library/.homebrew-is-managed-by-nix/.git"
+    if [ -d "$brewrepo" ]; then
+      mkdir -p "$brewrepo/objects" "$brewrepo/refs"
+      echo 'ref: refs/heads/main' > "$brewrepo/HEAD"
+      chown -R ${user} "$brewrepo" || true
+    fi
+
     ${asUser "/System/Library/PrivateFrameworks/SystemAdministration.framework/Resources/activateSettings -u"} || true
     killall -qu ${user} Finder ControlCenter WindowManager || true
   '';
