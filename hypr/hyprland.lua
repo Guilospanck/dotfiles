@@ -18,7 +18,7 @@ require("hypr.autostart")
 -- Toggle config flags dynamically.
 require("default.hypr.toggles")
 
--- NVIDIA environment variables.
+-- NVIDIA environment variables (only on machines with the NVIDIA driver loaded).
 --
 -- Set explicitly rather than relying on default/hypr/nvidia.lua. At the v4.0.0
 -- tag that file gates every hl.env() call on o.shell_succeeds(), which wraps
@@ -29,6 +29,20 @@ require("default.hypr.toggles")
 -- harmless once that fix lands (same values nvidia.lua picks for a GSP card),
 -- so they can be dropped after confirming `systemctl --user show-environment`
 -- reports all three.
-hl.env("NVD_BACKEND", "direct")
-hl.env("LIBVA_DRIVER_NAME", "nvidia")
-hl.env("__GLX_VENDOR_LIBRARY_NAME", "nvidia")
+--
+-- Detection uses io.open (no child process) on the driver's procfs entry, which
+-- exists only when the proprietary nvidia kernel module is loaded.
+local function has_nvidia()
+  local f = io.open("/proc/driver/nvidia/version", "r")
+  if f then
+    f:close()
+    return true
+  end
+  return false
+end
+
+if has_nvidia() then
+  hl.env("NVD_BACKEND", "direct")
+  hl.env("LIBVA_DRIVER_NAME", "nvidia")
+  hl.env("__GLX_VENDOR_LIBRARY_NAME", "nvidia")
+end

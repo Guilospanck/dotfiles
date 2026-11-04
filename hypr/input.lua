@@ -30,6 +30,12 @@ hl.config({
   },
 })
 
+-- T2 MacBook internal keyboard: swap caps and escape.
+hl.device({
+  name = "apple-inc.-apple-internal-keyboard-/-trackpad",
+  kb_options = "caps:swapescape",
+})
+
 -- Scroll faster in the terminal
 o.window("(Alacritty|kitty|foot)", { scroll_touchpad = 1.5 })
 o.window("com.mitchellh.ghostty", { scroll_touchpad = 0.2 })
