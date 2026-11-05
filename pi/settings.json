@@ -1,0 +1,8 @@
+{
+  "defaultProvider": "openai-codex",
+  "defaultModel": "gpt-6.1-sol",
+  "enabledModels": [
+    "openai-codex/gpt-6.1-sol"
+  ],
+  "enableInstallTelemetry": false
+}

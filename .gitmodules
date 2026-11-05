@@ -2,3 +2,7 @@
 	path = nvim
 	url = https://github.com/Guilospanck/nvim.git
 	branch = master
+[submodule "openshell"]
+	path = openshell
+	url = https://github.com/Guilospanck/oh-my-openshell.git
+	branch = main

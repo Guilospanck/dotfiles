@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Keep the existing macOS hotkey-sync safety net when core.hooksPath is enabled.
+set -euo pipefail
+exec "$(git rev-parse --show-toplevel)/git-hooks/pre-push" "$@"

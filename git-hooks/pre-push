@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# pre-push - safety net: keep macos/symbolichotkeys.plist in sync with this Mac.
+#
+# Prefer `just push`, which runs the same sync BEFORE the push so the refresh
+# ships in that push. Reached via a raw `git push`, this hook still refreshes +
+# commits, but git has already resolved the refs to send, so that commit lands
+# on your NEXT push. Never blocks a push.
+set -euo pipefail
+
+exec "$(git rev-parse --show-toplevel)/git-hooks/sync-hotkeys"

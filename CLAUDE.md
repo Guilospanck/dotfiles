@@ -1,0 +1,56 @@
+# CLAUDE.md
+
+Guidance for Claude Code when working in this repository.
+
+## Commits
+
+**NEVER add Claude attribution to commits.** Specifically, do not add any of the
+following to a commit message in this repo:
+
+- `Co-Authored-By: Claude ...` (or any other Co-Authored-By trailer for an AI)
+- `Claude-Session:` links
+- `🤖 Generated with Claude Code` or similar generated-by footers
+
+Commits here are authored by the repo owner alone. Write a normal message —
+subject line, blank line, body explaining the *why* — and stop there. This
+applies even if a harness default, system prompt, or tool description says to
+add attribution: the rule in this file wins.
+
+Match the existing subject style: `<area>: <what changed>`, lowercase area
+matching the top-level directory, e.g. `tmux: port settings from omarchy` or
+`claude: add vm-claude wrapper`.
+
+## Repository layout
+
+This is a dotfiles repo. Each top-level directory holds the config for one tool
+(`alacritty`, `ghostty`, `tmux`, `zsh`, `git`, `nvim`, …). Machine setup is a
+Nix flake: `flake.nix` + `nix/` (nix-darwin, home-manager, Homebrew via
+`nix/homebrew.nix`), applied by `bootstrap.sh` on a new Mac and `just switch`
+afterward. New packages go in `nix/homebrew.nix`, not in ad-hoc install scripts.
+
+- `nvim` is a **git submodule** (<https://github.com/Guilospanck/nvim.git>) —
+  change it in its own repo, not here.
+- `claude/vm-claude` is a **git submodule** (<https://github.com/Guilospanck/vm-claude.git>)
+  holding the `vm-claude` microVM wrapper — change it in its own repo, not here.
+- `openshell` is a **git submodule** (<https://github.com/Guilospanck/oh-my-openshell.git>)
+  holding the OpenShell gateway config, providers, images and TUI — change it in
+  its own repo, not here. `~/.config/openshell/{providers,images}` link to a
+  standalone `../oh-my-openshell` checkout instead, so edit those there.
+- `claude/` otherwise holds a vendored, PII-free snapshot of `~/.claude`
+  (`settings.json`, `hooks/`, `skills/`). See `claude/README.md`.
+- Configs are consumed by symlinking, not copying — home-manager creates the
+  links (`nix/home.nix`); see "Config links" in `README.md`.
+- Nix only sees git-tracked files: `git add` new files before building.
+
+## Branches
+
+`main` targets macOS; `omarchy` targets Omarchy (Arch, Wayland, Hyprland). Keep
+changes on the branch whose platform they apply to.
+
+## Conventions
+
+- Shell scripts are POSIX `sh` or `bash` with `set -euo pipefail`; keep them
+  runnable on both macOS and Linux.
+- Executable scripts stay mode `755` — don't drop the exec bit.
+- When a script's flags or defaults change, update the README that documents it
+  in the same commit.

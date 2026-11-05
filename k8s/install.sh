@@ -1,1 +1,0 @@
-brew install kubectl && brew install helm && brew install minikube && helm plugin install https://github.com/jkroepke/helm-secrets --version v4.4.1      
