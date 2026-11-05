@@ -7,9 +7,14 @@
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # Not in nixpkgs; upstream ships a flake.
+    workmux = {
+      url = "github:raine/workmux";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { nixpkgs, home-manager, ... }:
+  outputs = { nixpkgs, home-manager, workmux, ... }:
     let
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
@@ -19,7 +24,10 @@
     {
       homeConfigurations.omarchy = home-manager.lib.homeManagerConfiguration {
         inherit pkgs;
-        extraSpecialArgs = { inherit dotfilesDir; };
+        extraSpecialArgs = {
+          inherit dotfilesDir;
+          workmuxPkg = workmux.packages.${system}.default;
+        };
         modules = [ ./nix/home.nix ];
       };
     };

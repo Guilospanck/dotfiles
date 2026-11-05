@@ -39,7 +39,28 @@
     "root": {
       "inputs": {
         "home-manager": "home-manager",
-        "nixpkgs": "nixpkgs"
+        "nixpkgs": "nixpkgs",
+        "workmux": "workmux"
+      }
+    },
+    "workmux": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1793774638,
+        "narHash": "sha256-xp1vkuXH88UGmR1UqUmmzyMIXwi1vGesRlOoTyEmCzk=",
+        "owner": "raine",
+        "repo": "workmux",
+        "rev": "da569703dc16d7850584021949e6379301af54f7",
+        "type": "github"
+      },
+      "original": {
+        "owner": "raine",
+        "repo": "workmux",
+        "type": "github"
       }
     }
   },

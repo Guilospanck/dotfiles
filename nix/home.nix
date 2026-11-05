@@ -1,4 +1,4 @@
-{ config, lib, pkgs, dotfilesDir, ... }:
+{ config, lib, pkgs, dotfilesDir, workmuxPkg, ... }:
 
 let
   # Out-of-store links point at the repo checkout, so edits apply live
@@ -126,6 +126,7 @@ in
     docker-buildx
     docker-compose
     uv
+    workmuxPkg
   ];
 
   # Not managed here:
