@@ -90,6 +90,14 @@ if ! command -v claude >/dev/null 2>&1; then
   try bash -c 'curl -fsSL https://claude.ai/install.sh | bash'
 fi
 
+# caveman skill: the SessionStart hook (claude/hooks/caveman-session.sh) asks
+# for it. Skill only; the full installer edits settings.json (read-only here)
+# and sends telemetry.
+if command -v npx >/dev/null 2>&1 && [ ! -d "$HOME/.claude/skills/caveman" ]; then
+  log "Installing caveman skill"
+  try env DO_NOT_TRACK=1 npx -y skills add JuliusBrussee/caveman -g -a claude-code -y
+fi
+
 if command -v go >/dev/null 2>&1 && [ ! -x "$HOME/golang/bin/scaffolder" ]; then
   log "Installing scaffolder"
   try env GOPATH="$HOME/golang" go install github.com/Guilospanck/scaffolder@latest

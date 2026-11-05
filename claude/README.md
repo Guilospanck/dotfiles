@@ -57,5 +57,8 @@ so `$HOME` expands at run time. Keep new hooks in shell form for this to hold.
 - **Marketplace / plugin skills** — skill entries in `~/.claude/skills` that are
   symlinks into `~/.agents` come from a plugin marketplace and are managed
   there, so they're not vendored. Note `settings.json`'s caveman hook invokes
-  the `caveman` skill, which is one of these — install that marketplace for
-  caveman mode to work end to end.
+  the `caveman` skill (JuliusBrussee/caveman). On omarchy `bootstrap.sh`
+  installs the skill only (`npx skills add JuliusBrussee/caveman -g -a claude-code`).
+  The `caveman-blocks` PreToolUse hook is a no-op until that binary exists at
+  `~/.local/share/caveman-blocks/bin/`; the full installer (`npx @caveman-ai/cli`)
+  provides it but edits `settings.json`, which home-manager makes read-only.

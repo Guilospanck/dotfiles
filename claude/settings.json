@@ -50,7 +50,7 @@
       {
         "hooks": [
           {
-            "command": "/Users/guilospanck/.local/share/caveman-blocks/bin/caveman-blocks hook --harness claude",
+            "command": "[ -x \"$HOME/.local/share/caveman-blocks/bin/caveman-blocks\" ] && \"$HOME/.local/share/caveman-blocks/bin/caveman-blocks\" hook --harness claude || true",
             "timeout": 5,
             "type": "command"
           }
