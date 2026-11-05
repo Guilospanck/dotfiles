@@ -60,12 +60,14 @@ in
   };
 
   # home-manager's `-b bak` only backs up files, not directories. Omarchy
-  # ships real ~/.config/{hypr,tmux,...} dirs, which would abort the first
+  # ships real ~/.config/{hypr,tmux,...} dirs (or stale symlinks), which abort the first
   # switch ("would be clobbered"), so move them aside before the link check.
   home.activation.backupConfigDirs = lib.hm.dag.entryBefore [ "checkLinkTargets" ] ''
     cfg="''${XDG_CONFIG_HOME:-$HOME/.config}"
     for d in ghostty tmux hypr waybar fcitx5 openshell/providers openshell/images; do
-      if [ -d "$cfg/$d" ] && [ ! -L "$cfg/$d" ]; then
+      # Real dirs, or symlinks (e.g. to an old checkout) not managed by nix.
+      if [ -e "$cfg/$d" ] || [ -L "$cfg/$d" ]; then
+        case "$(readlink "$cfg/$d" || true)" in /nix/store/*) continue ;; esac
         echo "moving existing $cfg/$d to $cfg/$d.bak"
         rm -rf "$cfg/$d.bak"
         mv "$cfg/$d" "$cfg/$d.bak"
