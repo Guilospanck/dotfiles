@@ -116,7 +116,7 @@ apply live without a rebuild):
 See [`pi/README.md`](pi/README.md) for Pi setup and privacy notes. Pi credentials,
 sessions, and other machine-local state are not linked or tracked.
 
-An existing real file at a target is moved to `<target>.bak` on the first switch.
+An existing real file or directory at a target is moved to `<target>.bak` on the first switch.
 
 Alacritty (replaced by ghostty) and Zellij (replaced by tmux) are no longer
 installed or linked, but `alacritty/` and `zellij/` stay in the repo to switch
