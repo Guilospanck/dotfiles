@@ -101,6 +101,7 @@
     ]
   },
   "model": "sonnet",
+  "outputStyle": "Concise",
   "permissions": {
     "allow": [],
     "defaultMode": "auto"
@@ -109,6 +110,7 @@
   "skipAutoPermissionPrompt": true,
   "skipDangerousModePermissionPrompt": true,
   "skipWorkflowUsageWarning": true,
+  "switchModelsOnFlag": true,
   "statusLine": {
     "command": "$HOME/.claude/hooks/statusline-caveman.sh",
     "type": "command"
