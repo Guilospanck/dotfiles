@@ -38,6 +38,36 @@
 - When briefing a subagent, tell it to stop its own background shells before
   it reports.
 
+## Commands that can hang
+
+A command that hangs unnoticed wastes the user's time and trust. This has
+happened repeatedly (e.g. `docker run ... rustc --version` under QEMU hung for
+14 minutes at 0% CPU while I said "waiting"). The rules:
+
+- Choose the hard time limit BEFORE running anything that might not return
+  (docker run/build, network calls, emulated or cross-arch work, test suites,
+  any command I have not run before). Size it to a realistic worst case: 60-120 s
+  for a probe such as `--version` or a smoke test, never "2 hours just in case".
+- A tool timeout is not a limit. When the Bash tool "moves the command to the
+  background" it keeps running. Wrap the command myself with
+  `timeout -k 5 <secs> ...` (macOS: `gtimeout -k 5 ...`). Plain `timeout N` is
+  not enough: `docker run` ignores SIGTERM, so the `-k` kill-after is required.
+- A container needs a `--name`, and the cleanup `docker rm -f <name>` runs after
+  the command, even on timeout. Killing the CLI client does not stop the
+  container.
+- A background job is mine to watch. Never write "waiting" or "I'll report when
+  it finishes" without a check: arm a Monitor with an exit condition and a
+  timeout, or check it on my next turn. When a "moved to background" notice
+  arrives, look at it within the same turn (elapsed time, output growth, CPU via
+  `docker stats` or `ps`) and say which it is: progressing, finished or hung.
+- Hung means: elapsed time over twice the expected duration, or no new output
+  and about 0% CPU for 2-3 minutes. A hung command is a failure, not "slow".
+  Kill it (kill -9 if needed), confirm it is gone with `ps` and `docker ps`,
+  tell the user, then diagnose.
+- When I start a background job, tell the user in one line its expected
+  duration, its hard limit and where its log is. When the user asks "check" or
+  "status", read the log and the process state first, then answer.
+
 ## Token economy and model selection
 
 Spend the fewest tokens that still get the task right: use the cheapest model
