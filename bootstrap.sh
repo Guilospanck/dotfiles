@@ -61,7 +61,7 @@ fi
 
 # --- 4. Apply the flake ------------------------------------------------------
 log "Applying home-manager config .#omarchy"
-nix run home-manager/master -- switch --flake "$DOTFILES_DIR#omarchy" -b bak
+nix run home-manager/master -- switch --flake "$DOTFILES_DIR#${DOTFILES_HOST:-omarchy}" -b bak
 
 # --- 5. Git hooks -------------------------------------------------------------
 log "Installing git hooks"

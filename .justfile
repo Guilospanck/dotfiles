@@ -1,12 +1,14 @@
 # dotfiles tasks -- run `just` (or `just --list`) to see recipes.
 
+host := env_var_or_default("DOTFILES_HOST", "omarchy")
+
 # list available recipes
 default:
     @just --list
 
 # apply the home-manager config (packages, apps, config links)
 switch:
-    nix run home-manager/master -- switch --flake "{{justfile_directory()}}#omarchy" -b bak
+    nix run home-manager/master -- switch --flake "{{justfile_directory()}}#{{host}}" -b bak
 
 # bump flake inputs (nixpkgs, home-manager), then apply
 update:

@@ -1,4 +1,4 @@
-{ config, lib, pkgs, dotfilesDir, workmuxPkg, ... }:
+{ config, lib, pkgs, dotfilesDir, workmuxPkg, username, ... }:
 
 let
   # Out-of-store links point at the repo checkout, so edits apply live
@@ -18,8 +18,8 @@ let
   ) (builtins.readDir ../pi/extensions);
 in
 {
-  home.username = "guilospanck";
-  home.homeDirectory = "/home/guilospanck";
+  home.username = username;
+  home.homeDirectory = "/home/${username}";
   home.stateVersion = "25.05";
   programs.home-manager.enable = true;
 

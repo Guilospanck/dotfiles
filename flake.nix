@@ -16,19 +16,24 @@
 
   outputs = { nixpkgs, home-manager, workmux, ... }:
     let
-      system = "x86_64-linux";
-      pkgs = nixpkgs.legacyPackages.${system};
-      # Where bootstrap.sh clones this repo; home-manager links configs here.
-      dotfilesDir = "/home/guilospanck/dotfiles";
+      mkHome = { system, username }:
+        let
+          pkgs = nixpkgs.legacyPackages.${system};
+          # Where bootstrap.sh clones this repo; home-manager links configs here.
+          dotfilesDir = "/home/${username}/dotfiles";
+        in
+        home-manager.lib.homeManagerConfiguration {
+          inherit pkgs;
+          extraSpecialArgs = {
+            inherit dotfilesDir username;
+            workmuxPkg = workmux.packages.${system}.default;
+          };
+          modules = [ ./nix/home.nix ];
+        };
     in
     {
-      homeConfigurations.omarchy = home-manager.lib.homeManagerConfiguration {
-        inherit pkgs;
-        extraSpecialArgs = {
-          inherit dotfilesDir;
-          workmuxPkg = workmux.packages.${system}.default;
-        };
-        modules = [ ./nix/home.nix ];
-      };
+      homeConfigurations.omarchy = mkHome { system = "x86_64-linux"; username = "guilospanck"; };
+      # aarch64 machine, user gman
+      homeConfigurations.omarchy-arm = mkHome { system = "aarch64-linux"; username = "gman"; };
     };
 }
