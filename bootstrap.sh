@@ -14,6 +14,13 @@
 set -euo pipefail
 
 DOTFILES_DIR="${DOTFILES_DIR:-$HOME/dotfiles}"
+# Flake config for this machine: aarch64 -> omarchy-arm, else omarchy.
+if [ -z "${DOTFILES_HOST:-}" ]; then
+  case "$(uname -m)" in
+    aarch64|arm64) DOTFILES_HOST=omarchy-arm ;;
+    *) DOTFILES_HOST=omarchy ;;
+  esac
+fi
 REPO_URL="https://github.com/Guilospanck/dotfiles.git"
 
 log() { printf '\n==> %s\n' "$*"; }
@@ -60,8 +67,8 @@ else
 fi
 
 # --- 4. Apply the flake ------------------------------------------------------
-log "Applying home-manager config .#omarchy"
-nix run home-manager/master -- switch --flake "$DOTFILES_DIR#${DOTFILES_HOST:-omarchy}" -b bak
+log "Applying home-manager config .#$DOTFILES_HOST"
+nix run home-manager/master -- switch --flake "$DOTFILES_DIR#$DOTFILES_HOST" -b bak
 
 # --- 5. Git hooks -------------------------------------------------------------
 log "Installing git hooks"

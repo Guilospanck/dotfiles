@@ -1,6 +1,6 @@
 # dotfiles tasks -- run `just` (or `just --list`) to see recipes.
 
-host := env_var_or_default("DOTFILES_HOST", "omarchy")
+host := env_var_or_default("DOTFILES_HOST", if arch() == "aarch64" { "omarchy-arm" } else { "omarchy" })
 
 # list available recipes
 default:

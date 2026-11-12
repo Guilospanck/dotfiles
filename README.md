@@ -22,7 +22,7 @@ other extra installers below are bootstrap-only).
 | Env var | Default | Meaning |
 | --- | --- | --- |
 | `DOTFILES_DIR` | `~/dotfiles` | Clone location. The flake links configs from this path, so change `dotfilesDir` in `flake.nix` too. |
-| `DOTFILES_HOST` | `omarchy` | Flake config to apply: `omarchy` (x86_64, user `guilospanck`) or `omarchy-arm` (aarch64, user `gman`). Also read by `just switch`. |
+| `DOTFILES_HOST` | by arch | Flake config to apply (auto: `omarchy-arm` on aarch64, else `omarchy`): `omarchy` (x86_64, user `guilospanck`) or `omarchy-arm` (aarch64, user `gman`). Also read by `just switch`. |
 
 After the flake it installs what Nix/pacman do not carry: Rust via rustup
 (plus components and targets), Claude Code, `scaffolder`, and GUI apps via
