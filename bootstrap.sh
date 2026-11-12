@@ -66,6 +66,13 @@ else
   log "yay already installed"
 fi
 
+# --- 3b. zsh -----------------------------------------------------------------
+# ghostty/config launches /bin/zsh; Omarchy ships only bash.
+if ! command -v zsh >/dev/null 2>&1; then
+  log "Installing zsh"
+  sudo pacman -S --needed --noconfirm zsh
+fi
+
 # --- 4. Apply the flake ------------------------------------------------------
 log "Applying home-manager config .#$DOTFILES_HOST"
 nix run home-manager/master -- switch --flake "$DOTFILES_DIR#$DOTFILES_HOST" -b bak
