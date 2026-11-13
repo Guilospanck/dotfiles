@@ -1,90 +1,85 @@
 {
-  "agentPushNotifEnabled": true,
-  "effortLevel": "high",
-  "enabledPlugins": {
-    "clangd-lsp@claude-plugins-official": true,
-    "gopls-lsp@claude-plugins-official": true,
-    "rust-analyzer-lsp@claude-plugins-official": true,
-    "superpowers@claude-plugins-official": true,
-    "swift-lsp@claude-plugins-official": true
-  },
   "env": {
     "CLAUDE_CODE_SUBAGENT_MODEL": "opus"
   },
-  "extraKnownMarketplaces": {},
+  "permissions": {
+    "allow": [],
+    "defaultMode": "auto"
+  },
+  "model": "sonnet",
   "hooks": {
     "Notification": [
       {
+        "matcher": "permission_prompt|elicitation_dialog",
         "hooks": [
           {
-            "command": "workmux set-window-status waiting",
-            "type": "command"
+            "type": "command",
+            "command": "workmux set-window-status waiting"
           }
-        ],
-        "matcher": "permission_prompt|elicitation_dialog"
+        ]
       }
     ],
     "PostCompact": [
       {
+        "matcher": "",
         "hooks": [
           {
+            "type": "command",
             "command": "$HOME/.claude/hooks/caveman-session.sh",
-            "timeout": 10,
-            "type": "command"
+            "timeout": 10
           }
-        ],
-        "matcher": ""
+        ]
       }
     ],
     "PostToolUse": [
       {
         "hooks": [
           {
-            "command": "workmux set-window-status working",
-            "type": "command"
+            "type": "command",
+            "command": "workmux set-window-status working"
           }
         ]
       }
     ],
     "PreToolUse": [
       {
+        "matcher": "Bash",
         "hooks": [
           {
+            "type": "command",
             "command": "[ -x \"$HOME/.local/share/caveman-blocks/bin/caveman-blocks\" ] && \"$HOME/.local/share/caveman-blocks/bin/caveman-blocks\" hook --harness claude || true",
-            "timeout": 5,
-            "type": "command"
+            "timeout": 5
           }
-        ],
-        "matcher": "Bash"
+        ]
       }
     ],
     "SessionStart": [
       {
+        "matcher": "",
         "hooks": [
           {
+            "type": "command",
             "command": "$HOME/.claude/hooks/caveman-session.sh",
-            "timeout": 10,
-            "type": "command"
+            "timeout": 10
           }
-        ],
-        "matcher": ""
+        ]
       },
       {
+        "matcher": "startup|resume|clear|fork",
         "hooks": [
           {
-            "command": "workmux register-agent",
-            "type": "command"
+            "type": "command",
+            "command": "workmux register-agent"
           }
-        ],
-        "matcher": "startup|resume|clear|fork"
+        ]
       }
     ],
     "Stop": [
       {
         "hooks": [
           {
-            "command": "workmux set-window-status done",
-            "type": "command"
+            "type": "command",
+            "command": "workmux set-window-status done"
           }
         ]
       }
@@ -93,30 +88,36 @@
       {
         "hooks": [
           {
-            "command": "workmux set-window-status working",
-            "type": "command"
+            "type": "command",
+            "command": "workmux set-window-status working"
           }
         ]
       }
     ]
   },
-  "model": "sonnet",
-  "permissions": {
-    "allow": [],
-    "defaultMode": "auto"
-  },
-  "remoteControlAtStartup": false,
-  "skipAutoPermissionPrompt": true,
-  "skipDangerousModePermissionPrompt": true,
-  "skipWorkflowUsageWarning": true,
   "statusLine": {
-    "command": "$HOME/.claude/hooks/statusline-caveman.sh",
-    "type": "command"
+    "type": "command",
+    "command": "$HOME/.claude/hooks/statusline-caveman.sh"
   },
-  "theme": "dark",
+  "enabledPlugins": {
+    "clangd-lsp@claude-plugins-official": true,
+    "gopls-lsp@claude-plugins-official": true,
+    "rust-analyzer-lsp@claude-plugins-official": true,
+    "superpowers@claude-plugins-official": true,
+    "swift-lsp@claude-plugins-official": true,
+    "cc-plugin-you-should-know@builtin": true
+  },
+  "extraKnownMarketplaces": {},
+  "effortLevel": "high",
   "voice": {
     "enabled": true,
     "mode": "hold"
   },
+  "skipDangerousModePermissionPrompt": true,
+  "skipWorkflowUsageWarning": true,
+  "theme": "dark",
+  "remoteControlAtStartup": false,
+  "agentPushNotifEnabled": true,
+  "skipAutoPermissionPrompt": true,
   "voiceEnabled": true
 }
