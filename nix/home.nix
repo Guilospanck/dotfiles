@@ -45,6 +45,7 @@ in
     "hypr".source = link "hypr";
     "waybar".source = link "waybar";
     "fcitx5".source = link "fcitx5";
+    "nvim".source = link "nvim";
 
     "starship.toml".source = link "starship/starship.toml";
     "workmux/config.yaml".source = link "workmux/config.yaml";
@@ -63,7 +64,7 @@ in
   # switch ("would be clobbered"), so move them aside before the link check.
   home.activation.backupConfigDirs = lib.hm.dag.entryBefore [ "checkLinkTargets" ] ''
     cfg="''${XDG_CONFIG_HOME:-$HOME/.config}"
-    for d in ghostty tmux hypr waybar fcitx5 openshell/providers openshell/images; do
+    for d in ghostty tmux hypr waybar fcitx5 nvim openshell/providers openshell/images; do
       # Real dirs, or symlinks (e.g. to an old checkout) not managed by nix.
       if [ -e "$cfg/$d" ] || [ -L "$cfg/$d" ]; then
         case "$(readlink "$cfg/$d" || true)" in /nix/store/*) continue ;; esac
@@ -134,7 +135,6 @@ in
   # - rustup: installed by bootstrap.sh; `rustup component add` needs the
   #   real rustup, not nixpkgs rustc.
   # - ~/.gitconfig.local: per-machine signing key, written by gitSigning above.
-  # - ~/.config/nvim: a git submodule clone (nvim/), see bootstrap.sh.
   # - the rest of ~/.claude (credentials, history, sessions, …): PII / secrets.
   # - the rest of ~/.pi/agent (auth, sessions, trust, install, …): local state.
   # - openshell/gateway*: machine-local gateway state and credentials.

@@ -74,6 +74,9 @@ alias ls='eza --icons --git'
 alias vim='nvim'
 alias vi='nvim'
 
+# remove all unused docker images, containers and volumes
+alias dcprune='docker system prune --all --volumes -f && docker volume prune --filter all=1 -f'
+
 # ──────────────────────────────────────────────
 # workmux
 # ──────────────────────────────────────────────
