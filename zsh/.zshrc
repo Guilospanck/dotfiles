@@ -81,3 +81,4 @@ alias wm='workmux'
 
 # Machine-local config and secrets (not tracked)
 [ -f ~/.zshrc.local ] && source ~/.zshrc.local
+export DOCKER_HOST=unix://$XDG_RUNTIME_DIR/docker.sock
