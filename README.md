@@ -101,7 +101,7 @@ apply live without a rebuild):
 | `~/.config/hypr` | `hypr/` |
 | `~/.config/waybar` | `waybar/` |
 | `~/.config/fcitx5` | `fcitx5/` |
-| `~/.config/openshell/{.justfile,osh,gateway.env,providers,images}` | `openshell/` (same names; git submodule, [oh-my-openshell](https://github.com/Guilospanck/oh-my-openshell)) |
+| `~/.config/openshell/{.justfile,osh,providers,images}` | `openshell/` (same names; git submodule, [oh-my-openshell](https://github.com/Guilospanck/oh-my-openshell)) |
 | `~/.config/openshell/gateway.toml` | copy of `openshell/gateway-linux.toml`, written on switch (the gateway rejects symlinked configs; rerun `just switch` and restart the gateway after editing) |
 | `~/.gitconfig`, `~/.gitignore`, `~/.gitallowedsigners` | `git/` (same names) |
 | `~/.config/starship.toml` | `starship/starship.toml` |

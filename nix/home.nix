@@ -53,7 +53,6 @@ in
     # Portable OpenShell config (see openshell/README.md); active_gateway and
     # gateways/ stay machine-local.
     "openshell/.justfile".source = link "openshell/.justfile";
-    "openshell/gateway.env".source = link "openshell/gateway.env";
     "openshell/osh".source = link "openshell/osh";
     "openshell/providers".source = link "openshell/providers";
     "openshell/images".source = link "openshell/images";
