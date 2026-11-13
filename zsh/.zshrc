@@ -7,6 +7,11 @@ export PATH="$HOME/.local/bin:$PATH"
 command -v zoxide >/dev/null 2>&1 && eval "$(zoxide init zsh)"
 
 # ──────────────────────────────────────────────
+# fzf (Ctrl+R history, Ctrl+T files, Alt+C cd, ** completion)
+# ──────────────────────────────────────────────
+command -v fzf >/dev/null 2>&1 && source <(fzf --zsh)
+
+# ──────────────────────────────────────────────
 # Prompt (git-aware)
 # ──────────────────────────────────────────────
 autoload -Uz vcs_info add-zsh-hook
