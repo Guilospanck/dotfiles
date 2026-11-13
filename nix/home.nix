@@ -44,13 +44,10 @@ in
   };
 
   # Link only portable config; gateway credentials/state stay machine-local.
-  # gateway.env holds non-secret runtime env only; the pre-commit scan covers it.
   xdg.configFile."openshell/.justfile".source = link "openshell/.justfile";
   # gateway.toml is copied, not linked: the gateway refuses a symlinked config.
-  xdg.configFile."openshell/gateway.env".source = link "openshell/gateway.env";
   xdg.configFile."openshell/osh".source = link "openshell/osh";
   xdg.configFile."openshell/gateway-docker.toml".source = link "openshell/gateway-docker.toml";
-  xdg.configFile."openshell/gateway-docker-service".source = link "openshell/gateway-docker-service";
   # providers/images link to the standalone oh-my-openshell checkout (sibling of
   # this repo), not the submodule clone, so edits land where they get committed.
   xdg.configFile."openshell/providers".source =
