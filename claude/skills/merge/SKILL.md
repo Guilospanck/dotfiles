@@ -28,7 +28,7 @@ This command finishes work on the current branch by:
 
 Check for staged, unstaged, and untracked changes with `git status --porcelain`. If
 there are changes, stage all of them with `git add -A`, review the staged diff,
-and commit. Use lowercase, imperative mood, no conventional commit prefixes.
+and commit. Follow the commit style visible in `git log` and the project's CLAUDE.md.
 Skip if the working tree is clean.
 
 ## Step 2: Rebase
@@ -47,7 +47,7 @@ Rebase onto the local base branch (do NOT fetch from origin first):
 git rebase <base-branch>
 ```
 
-IMPORTANT: Do NOT run `git fetch`. Do NOT rebase onto `origin/<branch>`. Only rebase onto the local branch name (e.g., `git rebase main`, not `git rebase origin/main`).
+IMPORTANT: Do NOT run `git fetch`. Do NOT rebase onto `origin/<branch>`. Only rebase onto the local branch name (e.g., `git rebase main`, not `git rebase origin/main`). Reason: the worktree branched from the local base and the merge target is the local branch, so origin's state is irrelevant and fetching can introduce unrelated changes.
 
 If conflicts occur:
 

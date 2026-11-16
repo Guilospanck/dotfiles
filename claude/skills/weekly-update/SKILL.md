@@ -9,15 +9,15 @@ Generate a concise, stakeholder-friendly weekly summary from git history, groupe
 
 ## Steps
 
-1. Get this week's commits on main:
+1. Get the last 7 days of commits on main:
    ```bash
-   git log --oneline --since="last monday" --until="next monday" main
+   git log --oneline --since="7 days ago" main
    ```
 
 2. Analyze all commits (not just merges) and group into these categories:
    - **New Features** — new user-facing or system capabilities
    - **Bug Fixes** — corrections to broken behavior
-   - **Infrastructure & Protocol** — internal improvements, refactors, tooling, serialization, test coverage, naming conventions
+   - **Internal Improvements** — refactors, tooling, infrastructure, test coverage, naming conventions
 
 3. Write each bullet as a concise, outcome-focused statement. Avoid PR numbers, commit hashes, or implementation-only jargon. The audience is technical stakeholders — they care about *what changed and why*, not *which files were touched*.
 
@@ -34,7 +34,7 @@ Generate a concise, stakeholder-friendly weekly summary from git history, groupe
 *Bug Fixes*
 - [outcome-focused bullet]
 
-*Infrastructure & Protocol*
+*Internal Improvements*
 - [outcome-focused bullet]
 ```
 

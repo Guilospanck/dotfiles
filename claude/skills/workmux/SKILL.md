@@ -41,13 +41,11 @@ tmux new-session -d -P -F '#{window_id}' -s <project> -n <name> \
 ```
 
 Use tmux session metadata to resolve existing project paths, for example
-`tmux list-sessions -F '#{session_name}\t#{session_path}'`. Avoid directory
-listings when that metadata already supplies the path. Create windows with
+`tmux list-sessions -F '#{session_name}\t#{session_path}'`. Create windows with
 `tmux new-window -d -P -F '#{window_id}' ...` to return the new window ID;
 use that ID for subsequent operations instead of listing windows again.
 When switching is requested, batch the client lookup and switch into one
-tool call. Switch only when requested. Avoid redundant verification calls
-when the command's successful result already confirms the operation.
+tool call. Switch only when requested.
 
 When a separate worktree would clearly benefit the task, use `workmux add`
 from the target repository instead. Pass `--parent-session <project>` to

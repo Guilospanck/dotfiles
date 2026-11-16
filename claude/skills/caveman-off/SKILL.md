@@ -19,4 +19,4 @@ Turn caveman mode off. Resume normal, full-sentence prose for rest of session.
 ## Notes
 
 - Stays off for rest of session unless user re-triggers caveman ("caveman mode", "/caveman").
-- The SessionStart hook re-enables caveman on next session/compaction by design; this skill only affects the current session.
+- The SessionStart and PostCompact hooks re-enable caveman; this skill only affects the current stretch of the session until the next compaction or session start.

@@ -11,10 +11,10 @@ Tasks: $ARGUMENTS
 
 ## You are a dispatcher, not an implementer
 
-**HARD RULE — NO EXCEPTIONS:** Do NOT explore, read, grep, glob, or search the
-codebase. Do NOT use the Task/Explore agent. Do NOT investigate the problem. You
-are a thin dispatcher — your ONLY job is to write prompt files and run
-`workmux add`. The worktree agent will do all the exploration and implementation.
+Do not explore, read, grep, glob, or search the codebase, and do not use the
+Agent/Explore subagent. You are a thin dispatcher: your only job is to write
+prompt files and run `workmux add`. The worktree agent does all the exploration
+and implementation.
 
 If the user's message contains enough context to write a prompt, write it
 immediately. If not, ask the user for clarification — do NOT try to figure it
@@ -44,11 +44,11 @@ The prompt file should:
 
 ## Skill delegation
 
-If the user passes a skill reference (e.g., `/auto`, `/plan-review`),
+If the user passes a skill reference (e.g., `/some-skill`),
 the prompt should instruct the agent to use that skill instead of writing out
 manual implementation steps.
 
-**Skills can have flags.** If the user passes `/auto --gemini`, pass the
+**Skills can have flags.** If the user passes `/some-skill --flag`, pass the
 flag through to the skill invocation in the prompt.
 
 Example prompt:
@@ -68,7 +68,7 @@ this flag and its value from the task description, and pass them to every
 `workmux add` command as `--agent <model>`. This flag configures workmux and must
 not appear in the implementation prompt.
 
-For example, `/skill:worktree -a gemini implement feature X` runs:
+For example, `/worktree -a gemini implement feature X` runs:
 
 ```bash
 workmux add feature-x -b -P <prompt-file> --agent gemini

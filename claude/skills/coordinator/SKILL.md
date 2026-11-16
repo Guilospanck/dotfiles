@@ -1,7 +1,7 @@
 ---
 name: coordinator
 description: Orchestrate multiple worktree agents. Spawn, monitor, communicate, and merge.
-allowed-tools: Bash, Write, Read, Task
+allowed-tools: Bash, Write, Read, Agent
 ---
 
 # Worktree Agent Coordinator
@@ -45,7 +45,7 @@ source files, edit code, or implement tasks yourself.
 - If referencing earlier conversation context, include it verbatim
 - If a task references a markdown file (plan, spec), re-read it for the latest
   version before writing the prompt
-- If delegating a skill (e.g., `/auto`), instruct the agent to use it. Do not
+- If delegating a skill (e.g., `/some-skill`), instruct the agent to use it. Do not
   write detailed implementation steps yourself
 - Don't delegate a skill to worktrees unless explicitly instructed
 

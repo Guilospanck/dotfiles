@@ -11,17 +11,17 @@ Fetch and display all comments from the GitHub PR for the current branch.
 
 1. Get PR info:
    ```bash
-   gh pr view --json number,headRepository
+   gh pr view --json number,headRefName
    ```
 
 2. Fetch PR-level (issue) comments:
    ```bash
-   gh api /repos/{owner}/{repo}/issues/{number}/comments
+   gh api --paginate /repos/{owner}/{repo}/issues/{number}/comments
    ```
 
 3. Fetch review comments (code-level):
    ```bash
-   gh api /repos/{owner}/{repo}/pulls/{number}/comments
+   gh api --paginate /repos/{owner}/{repo}/pulls/{number}/comments
    ```
    Pay attention to: `body`, `diff_hunk`, `path`, `line`, `original_line`.
 
