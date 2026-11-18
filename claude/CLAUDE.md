@@ -103,27 +103,3 @@ Keep contexts small:
 # graphify
 - **graphify** (`~/.claude/skills/graphify/SKILL.md`) - any input to knowledge graph. Trigger: `/graphify`
 When the user types `/graphify`, use the installed graphify skill or instructions before doing anything else.
-
-## Evidence before advice
-
-- Read the actual code in every library and service involved before proposing
-  any idea or design. Comments, docs, ADRs and recollection are not evidence.
-- Do the full reading first. Never answer with "unverified", "did not read",
-  "from memory" or "tell me and I will read it"; keep reading until the code
-  answers the question. Re-check line references against the current HEAD,
-  because branches get rebased mid-session.
-
-## Sending keys to tmux panes
-
-- Never target a tmux pane by `session:window.pane` index. Window indexes shift
-  when windows open or close, and `tmux list-windows -a` spans every session
-  (other projects' Claude sessions live there). Typed text in a pane that runs
-  Claude lands as a chat message to that session.
-- Before every `tmux send-keys`: list panes with
-  `tmux list-panes -a -F '#{pane_id} #{pane_current_command} #{pane_current_path}'`,
-  pick the stable pane id (`%NNN`), and confirm its path is the worktree you
-  mean and its command is what you expect (`zsh` before typing a launch
-  command, not a running `claude`). Re-check right before sending, not from an
-  earlier listing.
-- Prefer `workmux send <handle>` for agents workmux manages. After sending,
-  capture the pane to confirm where the text went.
