@@ -43,6 +43,7 @@
         mac = mkMac { user = "guilospanck"; };
         G1459 = mkMac { user = "guilospanck"; };
         G0840 = mkMac { user = "guilospanck"; };
+        gman = mkMac { user = "gman"; };
       };
     };
 }

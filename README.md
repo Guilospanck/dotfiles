@@ -23,7 +23,7 @@ microsandbox and links `vm-claude` (the other extra installers below are bootstr
 | Env var | Default | Meaning |
 | --- | --- | --- |
 | `DOTFILES_DIR` | `~/repos/MyRepositories/dotfiles` | Clone location. The flake links configs from this path, so change `dotfilesDir` in `flake.nix` too. |
-| `FLAKE_HOST` | `mac` | `darwinConfigurations` entry to apply (`mac` or `G1459`). |
+| `FLAKE_HOST` | `mac` | `darwinConfigurations` entry to apply (`mac`, `G1459`, `G0840` or `gman`). |
 
 Before the flake it installs Rosetta. After it, it installs what Homebrew does
 not carry: Rust via rustup (plus components and targets), Node LTS via nvm,
