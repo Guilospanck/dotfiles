@@ -84,7 +84,6 @@
       "staticcheck"
       "stripe/stripe-cli/stripe"
       "tectonic"
-      "tldr"
       "tmux"
       "tree"
       "tree-sitter"
